@@ -1,0 +1,24 @@
+# النظام المتكامل: قاعدة بيانات + خادم API — شغّل من جذر الحزمة:
+#   cp .env.example .env ثم عدّل الأسرار، ثم: docker compose up -d --build
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: socialfund
+      POSTGRES_USER: socialfund
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?ضع POSTGRES_PASSWORD في .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://socialfund:${POSTGRES_PASSWORD}@db:5432/socialfund
+      SECRET_KEY: ${SECRET_KEY:?ضع SECRET_KEY في .env}
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY:?ضع FIELD_ENCRYPTION_KEY في .env}
+      ENV: production
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+volumes:
+  pgdata:

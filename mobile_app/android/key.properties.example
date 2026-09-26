@@ -1,0 +1,8 @@
+# انسخ هذا الملف إلى key.properties (لا يُدفع إلى Git) واملأه بمعلومات
+# مفتاح الإصدار الحقيقي بعد إنشائه بـ:
+#   keytool -genkey -v -keystore ~/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+# هذا يحل ملاحظة الفحص 14: نسخة الإصدار لن تُوقَّع بمفتاح debug.
+storePassword=CHANGE_ME
+keyPassword=CHANGE_ME
+keyAlias=upload
+storeFile=/absolute/path/to/upload-keystore.jks

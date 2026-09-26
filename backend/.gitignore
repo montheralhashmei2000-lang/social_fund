@@ -1,0 +1,11 @@
+.env
+firebase-service-account.json
+app/static/fonts/*.ttf
+__pycache__/
+*.pyc
+venv/
+.venv/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
