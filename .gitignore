@@ -1,0 +1,11 @@
+# مفاتيح التوقيع والأسرار - لا ترفع للمستودع أبداً
+mobile_app/android/key.jks
+mobile_app/android/key.properties
+*.jks
+.env
+backups/
+dist/
+__pycache__/
+*.pyc
+.dart_tool/
+.pytest_cache/

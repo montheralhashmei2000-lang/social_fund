@@ -51,3 +51,16 @@ flutter build apk --release --dart-define=API_BASE_URL=... --dart-define=APP_ENV
 cd backend && python3 -m pytest -q          # 46 اختبار
 cd mobile_app && flutter analyze && flutter test
 ```
+
+## التحسينات الاحترافية (بواسطة apply_pro_improvements.py)
+
+- **أرقام ذرّية**: السندات والقيود تأخذ أرقامها من جدول `counters` بقفل صف — لا تكرار مهما تزامن المستخدمون.
+- **منع السحب فوق الرصيد**: سند صرف على حساب أصول يتجاوز رصيده يُرفض.
+- **CI على PostgreSQL**: مصفوفة sqlite/postgres في GitHub Actions لكل push.
+- **/v1**: نفس الواجهة متاحة تحت `/v1` (القديم يعمل — التطبيق الحالي لا يتأثر).
+- **مراقبة**: `SENTRY_DSN` + `pip install -r backend/requirements-prod.txt`، وسجل JSON لكل طلب مع ترويسة `X-Request-ID`.
+- **نسخ احتياطي آلي**: `docker compose --profile backup up -d` (يومي، يحذف الأقدم من 14 يوماً)، ونسخة مشفرة عند الطلب: `bash scripts/backup.sh "عبارة-تشفير"` والاستعادة: `bash scripts/restore.sh <ملف> "عبارة-تشفير"`.
+- **TLS عبر Caddy**: `DOMAIN=your-domain docker compose --profile proxy up -d` — شهادة تلقائية وحد 20MB للطلبات.
+- **الشعار ملف**: `PUT /fund-settings/logo-file` (multipart) يخزن في `MEDIA_DIR` ويُخدم من `/media`.
+- **ترقيم صفحات متوافق**: `?limit=&offset=` مع ترويسة `X-Total-Count` على aids/vouchers/journal (بدونها تُعاد القوائم كاملة كما كان).
+- **ملاحظة release**: نسخة release (R8) تحتاج ذاكرة أعلى من بيئات 2GB — ابنها على جهازك عبر `scripts/build_apk.sh` وقارن الحجم.

@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, field_validator
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -13,6 +13,7 @@ from app.core.database import get_db
 from app.core.deps import require_permission
 from app.models.user import User
 from app.models.accounting import JournalEntry, JournalLine, Account, ENTRY_TYPES
+from app.services import sequence_service  # noqa: F401 (يسجل نموذج العدادات)
 from app.services.audit_service import log_action
 
 router = APIRouter(prefix="/journal", tags=["Journal (Double Entry)"])
@@ -78,7 +79,9 @@ def _entry_out(db: Session, e: JournalEntry):
 def list_entries(date_from: Optional[str] = None, date_to: Optional[str] = None,
                  entry_type: Optional[str] = None, status_filter: Optional[str] = None,
                  campaign_id: Optional[str] = None, donor_id: Optional[str] = None,
-                 db: Session = Depends(get_db), user: User = Depends(require_permission("accounting"))):
+                 limit: Optional[int] = None, offset: int = 0,
+                 response: Response = None, db: Session = Depends(get_db),
+                 user: User = Depends(require_permission("accounting"))):
     q = db.query(JournalEntry).order_by(JournalEntry.entry_date.desc(), JournalEntry.created_at.desc())
     if date_from:
         q = q.filter(JournalEntry.entry_date >= date.fromisoformat(date_from))
@@ -92,7 +95,12 @@ def list_entries(date_from: Optional[str] = None, date_to: Optional[str] = None,
         q = q.filter(JournalEntry.campaign_id == campaign_id)
     if donor_id:
         q = q.filter(JournalEntry.donor_id == donor_id)
-    return [_entry_out(db, e) for e in q.limit(300).all()]
+    total = q.count()
+    if response is not None:
+        response.headers["X-Total-Count"] = str(total)
+    if limit:
+        q = q.offset(offset).limit(limit)
+    return [_entry_out(db, e) for e in q.all()]
 
 
 @router.get("/entry-types")
@@ -135,8 +143,8 @@ def create_entry(payload: EntryIn, db: Session = Depends(get_db), user: User = D
     )
     db.add(entry)
     db.flush()
-    seq = (db.query(func.count(JournalEntry.id)).scalar() or 0) + 1
-    entry.entry_no = f"JE-{seq:06d}"
+    from app.services.sequence_service import next_number
+    entry.entry_no = f"JE-{next_number(db, 'journal_entry'):06d}"
     db.add_all([
         JournalLine(entry_id=entry.id, account_id=l.account_id,
                     debit=Decimal(str(l.debit)), credit=Decimal(str(l.credit)), memo=l.memo)

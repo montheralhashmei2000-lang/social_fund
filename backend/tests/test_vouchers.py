@@ -134,6 +134,8 @@ def test_voucher_validation_and_permissions(client, admin_user, viewer_user):
     }, headers=_h(token))
     assert bad_acc.status_code == 400
 
+    # إيداع قبلي حتى يسمح سند الصرف (حماية السحب فوق الرصيد)
+    _receipt(client, token, member, cash, income, amount=900)
     # سند جهة حرة (بدون سجل) يعمل
     free = client.post("/vouchers", json={
         "kind": "صرف", "amount": 250, "voucher_date": "2026-09-03", "method": "نقداً",

@@ -29,6 +29,7 @@ from app.models.member import Member
 from app.models.records import TreasuryEntry, TreasuryType, Voucher, VoucherKind
 from app.models.user import User
 from app.models.welfare import Beneficiary
+from app.services import sequence_service  # noqa: F401 (يسجل نموذج العدادات)
 from app.services.audit_service import log_action
 
 router = APIRouter(prefix="/vouchers", tags=["Vouchers"])
@@ -39,10 +40,11 @@ VOUCHER_ENTRY_TYPE = {RECEIPT: "voucher_receipt", PAYMENT: "voucher_payment"}
 
 
 def next_voucher_no(db: Session, kind: str) -> str:
+    from app.services.sequence_service import next_number
     prefix = "REC" if kind == RECEIPT else "PAY"
     year = datetime.utcnow().year
-    count = db.query(Voucher).filter(Voucher.kind == kind).count()
-    return f"{prefix}-{year}-{count + 1:03d}"
+    seq = next_number(db, "voucher_" + ("receipt" if kind == RECEIPT else "payment"))
+    return f"{prefix}-{year}-{seq:04d}"
 
 
 def _next_entry_no(db: Session) -> str:
@@ -97,7 +99,9 @@ def _voucher_out(db: Session, v: Voucher):
 @router.get("")
 def list_vouchers(kind: Optional[str] = None, member_id: Optional[str] = None,
                   donor_id: Optional[str] = None, beneficiary_id: Optional[str] = None,
-                  db: Session = Depends(get_db), user: User = Depends(require_permission("vouchers"))):
+                  limit: Optional[int] = None, offset: int = 0,
+                  response: Response = None, db: Session = Depends(get_db),
+                  user: User = Depends(require_permission("vouchers"))):
     q = db.query(Voucher).filter(Voucher.deleted == False)  # noqa: E712
     if kind:
         q = q.filter(Voucher.kind == kind)
@@ -107,7 +111,13 @@ def list_vouchers(kind: Optional[str] = None, member_id: Optional[str] = None,
         q = q.filter(Voucher.donor_id == donor_id)
     if beneficiary_id:
         q = q.filter(Voucher.beneficiary_id == beneficiary_id)
-    return [_voucher_out(db, v) for v in q.order_by(Voucher.voucher_date.desc()).limit(300).all()]
+    q = q.order_by(Voucher.voucher_date.desc())
+    total = q.count()
+    if response is not None:
+        response.headers["X-Total-Count"] = str(total)
+    if limit:
+        q = q.offset(offset).limit(limit)
+    return [_voucher_out(db, v) for v in q.all()]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -141,6 +151,17 @@ def create_voucher(payload: dict, request: Request, db: Session = Depends(get_db
         raise HTTPException(status.HTTP_404_NOT_FOUND, "حساب الخزينة/البنك غير موجود")
     if not counter_acc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "الحساب المقابل غير موجود")
+
+    # حماية من السحب فوق الرصيد: سند صرف على حساب أصول لا يتجاوز رصيده
+    if kind == VoucherKind.payment and (treasury_acc.type or "") == "asset":
+        bal_rows = (db.query(JournalLine.debit, JournalLine.credit)
+                    .join(JournalEntry, JournalLine.entry_id == JournalEntry.id)
+                    .filter(JournalLine.account_id == treasury_acc.id,
+                            JournalEntry.status == "posted").all())
+        bal = sum(Decimal(str(d or 0)) for d, _ in bal_rows) - sum(Decimal(str(c or 0)) for _, c in bal_rows)
+        if bal < Decimal(str(data.amount)):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                                f"رصيد الحساب غير كافٍ للمصروف: المتاح {bal} والمطلوب {data.amount}")
     is_receipt = kind == VoucherKind.receipt
     if is_receipt and not (treasury_acc.is_bank or treasury_acc.is_cash or treasury_acc.is_wallet):
         raise HTTPException(status.HTTP_400_BAD_REQUEST,

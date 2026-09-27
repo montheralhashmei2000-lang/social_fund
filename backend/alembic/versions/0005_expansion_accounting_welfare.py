@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = "0005_expansion_accounting_welfare"
+revision = "0005_expansion_accounting"
 down_revision = "0004_member_national_id_search"
 branch_labels = None
 depends_on = None
@@ -202,13 +202,13 @@ def upgrade():
     op.create_index("ix_budgets_period", "budgets", ["period"])
 
     # أعمدة إضافية على جدول المساعدات: صانع القيد + المستفيد
-    op.add_column("aids", sa.Column("created_by", GUID, nullable=True))
-    op.add_column("aids", sa.Column("beneficiary_id", GUID, nullable=True))
+    op.add_column("aid_requests", sa.Column("created_by", GUID, nullable=True))
+    op.add_column("aid_requests", sa.Column("beneficiary_id", GUID, nullable=True))
 
 
 def downgrade():
-    op.drop_column("aids", "beneficiary_id")
-    op.drop_column("aids", "created_by")
+    op.drop_column("aid_requests", "beneficiary_id")
+    op.drop_column("aid_requests", "created_by")
     for t in ("budgets", "in_kind_movements", "in_kind_items", "periodic_aids", "beneficiaries",
               "campaigns", "pledges", "donors", "bank_statement_lines", "journal_lines",
               "journal_entries", "accounts"):

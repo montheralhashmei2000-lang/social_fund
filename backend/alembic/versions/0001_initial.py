@@ -26,11 +26,14 @@ def _sync_columns():
 
 
 def upgrade():
-    role_enum = postgresql.ENUM("admin", "accountant", "reviewer", "viewer", name="roleenum")
-    member_status_enum = postgresql.ENUM("نشط", "معلق", name="memberstatus")
-    aid_status_enum = postgresql.ENUM("قيد المراجعة", "معتمدة", "مصروفة", "مرفوضة", name="aidstatus")
-    treasury_type_enum = postgresql.ENUM("إيراد", "مصروف", name="treasurytype")
-    voucher_kind_enum = postgresql.ENUM("قبض", "صرف", name="voucherkind")
+    # create_type=False: الأنواع تُنشأ يدوياً أدناه (checkfirst=True) - بدونها
+    # يحاول SQLAlchemy إنشاءها مرة أخرى تلقائياً عند إنشاء الجدول فيفشل بـ
+    # "type already exists" (يظهر فقط على PostgreSQL حقيقي، لا على SQLite).
+    role_enum = postgresql.ENUM("admin", "accountant", "reviewer", "viewer", name="roleenum", create_type=False)
+    member_status_enum = postgresql.ENUM("نشط", "معلق", name="memberstatus", create_type=False)
+    aid_status_enum = postgresql.ENUM("قيد المراجعة", "معتمدة", "مصروفة", "مرفوضة", name="aidstatus", create_type=False)
+    treasury_type_enum = postgresql.ENUM("إيراد", "مصروف", name="treasurytype", create_type=False)
+    voucher_kind_enum = postgresql.ENUM("قبض", "صرف", name="voucherkind", create_type=False)
 
     bind = op.get_bind()
     role_enum.create(bind, checkfirst=True)

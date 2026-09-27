@@ -40,14 +40,17 @@ class PledgeIn(BaseModel):
     notes: Optional[str] = None
 
 
-def _donor_out(db: Session, d: Donor):
-    total = db.query(func.coalesce(func.sum(JournalLine.credit - JournalLine.debit), 0)).join(
-        JournalEntry, JournalLine.entry_id == JournalEntry.id
-    ).filter(
-        JournalEntry.donor_id == d.id,
-        JournalEntry.status == "posted",
-        JournalLine.credit > 0,
-    ).scalar() or 0
+def _donor_out(db: Session, d: Donor, total_override=None):
+    if total_override is not None:
+        total = total_override
+    else:
+        total = db.query(func.coalesce(func.sum(JournalLine.credit - JournalLine.debit), 0)).join(
+            JournalEntry, JournalLine.entry_id == JournalEntry.id
+        ).filter(
+            JournalEntry.donor_id == d.id,
+            JournalEntry.status == "posted",
+            JournalLine.credit > 0,
+        ).scalar() or 0
     return {
         "id": str(d.id), "name": d.name, "donor_type": d.donor_type,
         "donor_type_label": DONOR_TYPES.get(d.donor_type, d.donor_type),
@@ -85,7 +88,21 @@ def _next_due(p: Pledge) -> date:
 
 @router.get("/donors")
 def list_donors(db: Session = Depends(get_db), user: User = Depends(require_permission("donors"))):
-    return [_donor_out(db, d) for d in db.query(Donor).order_by(Donor.name).all()]
+    """قائمة المانحين بإجمالي التبرعات — استعلام مجمّع واحد بدل استعلام لكل مانح (N+1)."""
+    totals = (
+        db.query(JournalEntry.donor_id.label("did"),
+                 func.coalesce(func.sum(JournalLine.credit - JournalLine.debit), 0).label("total"))
+        .join(JournalLine, JournalLine.entry_id == JournalEntry.id)
+        .filter(JournalEntry.status == "posted", JournalLine.credit > 0, JournalEntry.donor_id.isnot(None))
+        .group_by(JournalEntry.donor_id)
+        .all()
+    )
+    totals_map = {str(t.did): float(t.total) for t in totals}
+    out = []
+    for d in db.query(Donor).order_by(Donor.name).all():
+        item = _donor_out(db, d, total_override=totals_map.get(str(d.id), 0.0))
+        out.append(item)
+    return out
 
 
 @router.post("/donors", status_code=status.HTTP_201_CREATED)

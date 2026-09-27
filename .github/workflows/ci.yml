@@ -1,0 +1,59 @@
+# يعمل على كل push: pytest على SQLite وعلى PostgreSQL حقيقي + فحص التطبيق
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        db: [sqlite, postgres]
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: socialfund_ci
+          POSTGRES_USER: socialfund
+          POSTGRES_PASSWORD: ci-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U socialfund"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: تثبيت الاعتماديات
+        run: |
+          if [ -f requirements.lock ]; then pip install -r requirements.lock; else pip install -r requirements.txt; fi
+          if [ "${{ matrix.db }}" = "postgres" ]; then pip install "psycopg[binary]"; fi
+      - name: اختبارات pytest (${{ matrix.db }})
+        env:
+          DATABASE_URL: ${{ matrix.db == 'postgres' && 'postgresql+psycopg://socialfund:ci-password@localhost:5432/socialfund_ci' || 'sqlite:///:memory:' }}
+          SECRET_KEY: ci-secret-key
+          FIELD_ENCRYPTION_KEY: zH5aGqYw6xVj8mQwB3nR2pL9sK4tN7cF1dE0uI6oA8s=
+        run: python -m pytest -q
+
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.24.3
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test

@@ -20,5 +20,36 @@ services:
       - "8000:8000"
     depends_on:
       - db
+  # نسخ احتياطي يومي آلي (يقصّ الأقدم من 14 يوماً) — فعّله بـ: docker compose --profile backup up -d
+  backups:
+    image: postgres:16-alpine
+    profiles: ["backup"]
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?ضع POSTGRES_PASSWORD في .env}
+    volumes:
+      - ./backups:/backups
+    depends_on:
+      - db
+    entrypoint: ["sh", "-c", "while true; do pg_dump -h db -U socialfund socialfund | gzip > /backups/socialfund-$$(date +%Y%m%d-%H%M%S).sql.gz; find /backups -name '*.sql.gz' -mtime +14 -delete; sleep 86400; done"]
+
+  # بروكسي TLS (شهادة تلقائية من Let's Encrypt) — فعّله بـ:
+  #   DOMAIN=your-domain.com docker compose --profile proxy up -d
+  proxy:
+    image: caddy:2-alpine
+    profiles: ["proxy"]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      - api
+
 volumes:
+  caddydata:
+  caddyconfig:
   pgdata:

@@ -36,7 +36,10 @@ class Member(Base, SyncMixin):
     email = Column(EncryptedString(255), nullable=True)
     city = Column(String, nullable=True)
     join_date = Column(String, nullable=True)
-    status = Column(Enum(MemberStatus), default=MemberStatus.active)
+    status = Column(
+        Enum(MemberStatus, values_callable=lambda e: [m.value for m in e]),
+        default=MemberStatus.active,
+    )
     monthly_subscription = Column(Integer, default=0)
     total_paid = Column(Integer, default=0)
     balance_due = Column(Integer, default=0)

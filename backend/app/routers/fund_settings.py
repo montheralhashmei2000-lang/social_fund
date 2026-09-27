@@ -1,5 +1,9 @@
 # app/routers/fund_settings.py
-from fastapi import APIRouter, Depends, Request
+import os
+import uuid
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -40,3 +44,38 @@ def update_fund_settings(payload: FundSettingsUpdate, request: Request, db: Sess
     db.commit()
     db.refresh(row)
     return row
+
+def _save_media(data: bytes, ext: str) -> str:
+    """يحفظ ملف وسائط ويعيد اسمه - يُخدم من /media بدل تخزين القاعدة."""
+    media = Path(os.environ.get("MEDIA_DIR", "./media"))
+    media.mkdir(parents=True, exist_ok=True)
+    name = f"{uuid.uuid4().hex}.{ext}"
+    (media / name).write_bytes(data)
+    return name
+
+
+@router.put("/logo-file")
+async def upload_logo_file(request: Request, db: Session = Depends(get_db),
+                           user: User = Depends(require_permission("settings"))):
+    """رفع شعار كملف (multipart/form-data: file) - يُخزن على القرص ويُخدم من /media."""
+    content_type = request.headers.get("content-type", "")
+    if "multipart/form-data" not in content_type:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "أرسل الشعار كـ multipart/form-data")
+    form = await request.form()
+    f = form.get("file")
+    if f is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "الملف مفقود")
+    ext = (os.path.splitext(f.filename or "")[1] or ".png").lstrip(".").lower()
+    if ext not in ("png", "jpg", "jpeg", "webp", "svg"):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "صيغة غير مدعومة (png/jpg/webp/svg)")
+    data = await f.read()
+    if len(data) > 5 * 1024 * 1024:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "أقصى حجم 5 ميغابايت")
+    name = _save_media(data, ext)
+    fs = db.query(FundSettings).first()
+    if not fs:
+        fs = FundSettings(name="الصندوق الاجتماعي التنموي")
+        db.add(fs)
+    fs.logo_base64 = f"/media/{name}"  # توافق: الواجهة تقرأ الرابط من نفس الحقل
+    db.commit()
+    return {"logo_url": f"/media/{name}"}

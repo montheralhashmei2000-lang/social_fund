@@ -5,6 +5,7 @@ import '../core/rbac.dart';
 import '../services/push_service.dart';
 import '../state/controllers.dart';
 import '../widgets/charts.dart';
+import '../widgets/executive_summary.dart';
 import '../widgets/ui.dart';
 import 'home_shell.dart';
 
@@ -107,6 +108,8 @@ class DashboardScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
+        const ExecutiveSummaryCard(),
+        const SizedBox(height: 10),
         Row(
           children: [
             Expanded(

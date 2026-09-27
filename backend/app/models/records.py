@@ -22,7 +22,13 @@ class AidRequest(Base, SyncMixin):
     aid_type = Column(String, nullable=False)
     amount = Column(Integer, nullable=False)
     request_date = Column(String, nullable=False)
-    status = Column(Enum(AidStatus), default=AidStatus.pending)
+    # values_callable: بدونها SQLAlchemy يخزّن اسم العضو الإنجليزي (pending) بدل
+    # قيمته العربية (قيد المراجعة) - يعمل صدفة على SQLite لكنه يفشل على نوع
+    # PostgreSQL ENUM الذي أنشأته الهجرة بالقيم العربية فقط.
+    status = Column(
+        Enum(AidStatus, values_callable=lambda e: [m.value for m in e]),
+        default=AidStatus.pending,
+    )
     note = Column(Text, nullable=True)
     reviewer_name = Column(String, nullable=True)
     reviewer_id = Column(Guid, ForeignKey("users.id"), nullable=True)
@@ -51,7 +57,7 @@ class TreasuryType(str, enum.Enum):
 class TreasuryEntry(Base, SyncMixin):
     __tablename__ = "treasury_entries"
 
-    type = Column(Enum(TreasuryType), nullable=False)
+    type = Column(Enum(TreasuryType, values_callable=lambda e: [m.value for m in e]), nullable=False)
     category = Column(String, nullable=False)
     description = Column(String, nullable=False)
     amount = Column(Integer, nullable=False)
@@ -68,7 +74,7 @@ class Voucher(Base, SyncMixin):
     __tablename__ = "vouchers"
 
     voucher_no = Column(String, unique=True, nullable=False, index=True)
-    kind = Column(Enum(VoucherKind), nullable=False)
+    kind = Column(Enum(VoucherKind, values_callable=lambda e: [m.value for m in e]), nullable=False)
     # الطرف: عضو / مانح / مستفيد / جهة حرة (واحد على الأقل)
     member_id = Column(Guid, ForeignKey("members.id"), nullable=True, index=True)
     member_name = Column(String, nullable=True)

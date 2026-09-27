@@ -45,6 +45,14 @@ class Settings(BaseSettings):
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_FROM_NUMBER: str = ""
 
+    # بوابة SMS عامة لإشعار الأعضاء بنتيجة طلباتهم (بديل اختياري لـTwilio).
+    SMS_GATEWAY_URL: str = ""
+    SMS_GATEWAY_TOKEN: str = ""
+
+    # عنوان Redis لعدادات الحد من المعدل عند تشغيل أكثر من نسخة خادم.
+    # اتركه فارغاً لخادم واحد (يعمل بالذاكرة تلقائياً).
+    REDIS_URL: str = ""
+
     class Config:
         env_file = ".env"
 

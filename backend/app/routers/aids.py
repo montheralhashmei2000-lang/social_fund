@@ -1,5 +1,5 @@
 # app/routers/aids.py
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -23,12 +23,20 @@ VALID_TRANSITIONS = {
 
 
 @router.get("", response_model=List[AidOut])
-def list_aids(status_filter: Optional[str] = None, db: Session = Depends(get_db),
+def list_aids(status_filter: Optional[str] = None,
+              limit: Optional[int] = None, offset: int = 0,
+              response: Response = None, db: Session = Depends(get_db),
               user: User = Depends(require_permission("aids"))):
     q = db.query(AidRequest).filter(AidRequest.deleted == False)  # noqa: E712
     if status_filter:
         q = q.filter(AidRequest.status == status_filter)
-    return q.order_by(AidRequest.request_date.desc()).all()
+    q = q.order_by(AidRequest.request_date.desc())
+    total = q.count()
+    if response is not None:
+        response.headers["X-Total-Count"] = str(total)
+    if limit:
+        q = q.offset(offset).limit(limit)
+    return q.all()
 
 
 @router.post("", response_model=AidOut, status_code=status.HTTP_201_CREATED)
@@ -108,6 +116,13 @@ def update_aid_status(aid_id: str, payload: AidStatusUpdate, request: Request,
                ip_address=get_client_ip(request))
     db.commit()
     db.refresh(aid)
+
+    # إشعار العضو بنتيجة طلبه عبر قناة خارجية (SMS) - الأعضاء بلا حسابات دخول.
+    try:
+        from app.services.sms_service import notify_aid_status
+        notify_aid_status(db, aid, old_status.value, new_status.value)
+    except Exception:
+        pass  # فشل الإشعار لا يعطل العملية الأصلية أبداً
 
     # إشعار المدراء بالقرار المتخذ (تأكيد للمتابعة، خصوصاً إن اتخذه مراجع
     # وليس المدير نفسه). الأعضاء أنفسهم لا يملكون حسابات دخول حالياً، لذا

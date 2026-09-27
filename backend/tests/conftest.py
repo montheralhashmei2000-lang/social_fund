@@ -82,8 +82,8 @@ def _reset_rate_limit_state():
     """تنظيف حالة rate limiter بين الاختبارات (متغيرات وحدة عامة)."""
     from app.services import rate_limit_service
     yield
-    rate_limit_service._attempts.clear()
-    rate_limit_service._locked_until.clear()
+    rate_limit_service.reset_all()
+    rate_limit_service.reset_all()
 
 
 def api_login(client, username, password):

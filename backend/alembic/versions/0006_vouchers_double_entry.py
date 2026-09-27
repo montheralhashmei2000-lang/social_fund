@@ -14,7 +14,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "0006_vouchers_double_entry"
-down_revision = "0005_expansion_accounting_welfare"
+down_revision = "0005_expansion_accounting"
 branch_labels = None
 depends_on = None
 

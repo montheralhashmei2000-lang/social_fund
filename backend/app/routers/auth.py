@@ -98,6 +98,8 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
             "تعذّر إرسال رمز التحقق عبر SMS حالياً. حاول لاحقاً أو راجع مدير النظام.",
         )
 
+    db.commit()  # يثبّت رمز OTP في قاعدة البيانات - بدونه يُفقد عند إغلاق الجلسة (rollback ضمني)
+
     return LoginStep1Response(
         requires_otp=True,
         otp_token=otp_token,
