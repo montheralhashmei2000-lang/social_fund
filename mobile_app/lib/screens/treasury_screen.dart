@@ -49,7 +49,7 @@ class _TreasuryScreenState extends State<TreasuryScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('صافي الخزينة',
-                      style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 12)),
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 12)),
                   Text(money(balance),
                       style: TextStyle(
                           fontSize: 32,
@@ -133,7 +133,7 @@ class _TreasuryScreenState extends State<TreasuryScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -160,7 +160,7 @@ class _TreasuryScreenState extends State<TreasuryScreen> {
           Container(
             width: 44,
             height: 44,
-            decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
             child: Icon(isIncome ? Icons.arrow_downward : Icons.arrow_upward, color: color),
           ),
           const SizedBox(width: 12),
@@ -184,7 +184,7 @@ class _TreasuryScreenState extends State<TreasuryScreen> {
               Container(
                 margin: const EdgeInsets.only(top: 2),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
                 child: Text(t.type, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700)),
               ),
             ],

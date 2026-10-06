@@ -136,7 +136,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: c.border.withOpacity(0.7)),
+          side: BorderSide(color: c.border.withValues(alpha: 0.7)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(

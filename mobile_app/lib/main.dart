@@ -106,7 +106,7 @@ class _Gate extends StatelessWidget {
               const CircularProgressIndicator(color: Color(0xFFF9A825)),
               const SizedBox(height: 14),
               Text('جارٍ تحميل النظام…',
-                  style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13)),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13)),
             ],
           ),
         ),

@@ -51,7 +51,7 @@ class _AidsScreenState extends State<AidsScreen> {
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.08),
+                      color: color.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                           color: filter == status ? color : Colors.transparent, width: 1.5),
@@ -166,7 +166,7 @@ class _AidsScreenState extends State<AidsScreen> {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
         child: Text(label,
             style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700)),
       ),
@@ -211,7 +211,7 @@ class _AidDetail extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.08),
+            color: color.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(14),
             border: Border(right: BorderSide(color: color, width: 3)),
           ),

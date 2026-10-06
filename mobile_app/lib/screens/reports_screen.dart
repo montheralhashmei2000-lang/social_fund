@@ -139,7 +139,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: col.withOpacity(0.08),
+                      color: col.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(12),
                       border: Border(top: BorderSide(color: col, width: 3)),
                     ),
@@ -257,7 +257,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 4),
       padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
         border: Border(top: BorderSide(color: color, width: 3)),
       ),

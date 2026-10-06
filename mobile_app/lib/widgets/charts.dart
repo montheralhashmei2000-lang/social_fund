@@ -72,7 +72,7 @@ class _TrendPainter extends CustomPainter {
         ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [c.ok.withOpacity(0.25), c.ok.withOpacity(0.02)],
+          colors: [c.ok.withValues(alpha: 0.25), c.ok.withValues(alpha: 0.02)],
         ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
     );
 
@@ -165,7 +165,7 @@ class _DonutPainter extends CustomPainter {
       ..strokeCap = StrokeCap.butt;
 
     if (total == 0) {
-      paint.color = c.border.withOpacity(0.4);
+      paint.color = c.border.withValues(alpha: 0.4);
       canvas.drawArc(rect, 0, math.pi * 2, false, paint);
       return;
     }
@@ -235,7 +235,7 @@ class _BarColumn extends StatelessWidget {
               child: Container(
                 width: 26,
                 decoration: BoxDecoration(
-                  color: d.color.withOpacity(0.85),
+                  color: d.color.withValues(alpha: 0.85),
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
@@ -286,7 +286,7 @@ class ProportionalBarChart extends StatelessWidget {
                               child: Container(
                                 width: 26,
                                 decoration: BoxDecoration(
-                                  color: b.color.withOpacity(0.85),
+                                  color: b.color.withValues(alpha: 0.85),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                               ),

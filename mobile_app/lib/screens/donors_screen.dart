@@ -96,7 +96,7 @@ class _DonorsScreenState extends State<DonorsScreen> {
             height: 46,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: tierColor.withOpacity(0.12),
+              color: tierColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(d.name.isNotEmpty ? d.name[0] : '?',
@@ -123,7 +123,7 @@ class _DonorsScreenState extends State<DonorsScreen> {
                 margin: const EdgeInsets.only(top: 3),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: tierColor.withOpacity(0.1),
+                  color: tierColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(d.tierLabel,

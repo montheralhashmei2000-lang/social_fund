@@ -150,7 +150,7 @@ class _VouchersScreenState extends State<VouchersScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: col.withOpacity(0.12),
+              color: col.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(v.isVoid ? Icons.block : v.isReceipt ? Icons.download : Icons.upload, color: col),

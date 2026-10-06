@@ -39,7 +39,7 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
                       height: 48,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.12),
+                        color: color.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(_dayOfMonth(e.eventDate),

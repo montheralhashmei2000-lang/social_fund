@@ -42,7 +42,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       height: 42,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: (incoming ? c.primary : c.gold).withOpacity(0.14),
+                        color: (incoming ? c.primary : c.gold).withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(

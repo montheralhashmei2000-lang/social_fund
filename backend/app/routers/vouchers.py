@@ -13,7 +13,7 @@
 - الإلغاء بقيد عكسي (القيد المُرحَّل لا يُحذف أبداً) مع تعطيل مرآة الخزينة.
 - PDF رسمي للسند ببيانات الصندوق.
 """
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Optional
 
@@ -42,7 +42,7 @@ VOUCHER_ENTRY_TYPE = {RECEIPT: "voucher_receipt", PAYMENT: "voucher_payment"}
 def next_voucher_no(db: Session, kind: str) -> str:
     from app.services.sequence_service import next_number
     prefix = "REC" if kind == RECEIPT else "PAY"
-    year = datetime.utcnow().year
+    year = datetime.now(timezone.utc).year
     seq = next_number(db, "voucher_" + ("receipt" if kind == RECEIPT else "payment"))
     return f"{prefix}-{year}-{seq:04d}"
 

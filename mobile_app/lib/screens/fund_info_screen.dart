@@ -126,7 +126,7 @@ class _FundInfoScreenState extends State<FundInfoScreen> {
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 17)),
               if (address.text.isNotEmpty)
                 Text(address.text,
-                    style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12)),
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,

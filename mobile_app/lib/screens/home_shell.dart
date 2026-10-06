@@ -183,7 +183,7 @@ class _HomeShellState extends State<HomeShell> {
           if (!connectivity.online)
             Container(
               width: double.infinity,
-              color: c.warn.withOpacity(0.15),
+              color: c.warn.withValues(alpha: 0.15),
               padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 14),
               child: Row(
                 children: [
@@ -249,7 +249,7 @@ class _Header extends StatelessWidget {
               Builder(
                 builder: (ctx) => IconButton(
                   onPressed: () => Scaffold.of(ctx).openDrawer(),
-                  style: IconButton.styleFrom(backgroundColor: Colors.white.withOpacity(0.14)),
+                  style: IconButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: 0.14)),
                   icon: const Icon(Icons.menu, color: Colors.white, size: 20),
                 ),
               ),
@@ -278,7 +278,7 @@ class _Header extends StatelessWidget {
                 children: [
                   IconButton(
                     onPressed: onBell,
-                    style: IconButton.styleFrom(backgroundColor: Colors.white.withOpacity(0.14)),
+                    style: IconButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: 0.14)),
                     icon: const Icon(Icons.notifications_none, color: Colors.white, size: 20),
                   ),
                   if (pendingAids > 0)
@@ -386,7 +386,7 @@ class _Drawer extends StatelessWidget {
                                     fontWeight: selected == t.index ? FontWeight.w800 : FontWeight.w600,
                                     color: selected == t.index ? c.primary : c.tx)),
                             selected: selected == t.index,
-                            selectedTileColor: c.primary.withOpacity(0.08),
+                            selectedTileColor: c.primary.withValues(alpha: 0.08),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             onTap: () {
                               onSelect(t.index);

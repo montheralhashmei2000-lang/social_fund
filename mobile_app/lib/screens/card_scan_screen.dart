@@ -101,7 +101,7 @@ class _CardScanScreenState extends State<CardScanScreen> {
             child: Center(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(color: c.primaryDark.withOpacity(0.85), borderRadius: BorderRadius.circular(30)),
+                decoration: BoxDecoration(color: c.primaryDark.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(30)),
                 child: Text(
                   checking ? 'جارٍ التحقق من الخادم…' : 'وجّه الكاميرا إلى بطاقة العضوية',
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),

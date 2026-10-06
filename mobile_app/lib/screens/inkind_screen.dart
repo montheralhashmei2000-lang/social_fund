@@ -44,7 +44,7 @@ class _InKindScreenState extends State<InKindScreen> {
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            color: (i.lowStock ? c.warn : c.primary).withOpacity(0.1),
+                            color: (i.lowStock ? c.warn : c.primary).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(Icons.inventory_2,

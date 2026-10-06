@@ -198,7 +198,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Text(Rbac.label(user.role),
                         style: TextStyle(color: AppColors.light.gold, fontWeight: FontWeight.w700, fontSize: 12)),
                     Text('@${user.username}',
-                        style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 11)),
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11)),
                   ],
                 ),
               ),
@@ -220,7 +220,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 : 'غير متوفر على هذا الجهاز',
             trailing: Switch(
               value: bioOn,
-              activeColor: c.primary,
+              activeThumbColor: c.primary,
               onChanged: bioBusy || !auth.biometricsAvailable ? null : _toggleBio,
             ),
           ),
@@ -261,7 +261,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             sub: theme.dark ? 'مفعّل - يطبق على كل الشاشات فوراً' : 'معطّل',
             trailing: Switch(
               value: theme.dark,
-              activeColor: c.primary,
+              activeThumbColor: c.primary,
               onChanged: (v) => theme.setDark(v),
             ),
           ),
@@ -436,7 +436,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, size: 18, color: color),
@@ -480,7 +480,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: (danger ? c.err : color).withOpacity(0.1),
+                color: (danger ? c.err : color).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, size: 18, color: danger ? c.err : color),

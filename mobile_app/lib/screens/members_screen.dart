@@ -161,7 +161,7 @@ class _MembersScreenState extends State<MembersScreen> {
               _stat(context, 'مدفوع', money(m.totalPaid), c.primary, c.bg),
               _stat(context, 'متأخر', money(m.balanceDue),
                   m.balanceDue > 0 ? c.err : c.primary,
-                  m.balanceDue > 0 ? c.err.withOpacity(0.08) : c.bg),
+                  m.balanceDue > 0 ? c.err.withValues(alpha: 0.08) : c.bg),
             ],
           ),
         ],
@@ -236,7 +236,7 @@ class _MembersScreenState extends State<MembersScreen> {
                               style: const TextStyle(
                                   color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
                           Text('${m.city ?? '-'} · ${m.joinDate ?? '-'}',
-                              style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12)),
+                              style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
                         ],
                       ),
                     ),
@@ -264,7 +264,7 @@ class _MembersScreenState extends State<MembersScreen> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                               decoration: BoxDecoration(
-                                color: danger ? Colors.red.withOpacity(0.35) : Colors.white.withOpacity(0.2),
+                                color: danger ? Colors.red.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Row(

@@ -60,11 +60,11 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('إجمالي المحصّل',
-                        style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 11)),
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 11)),
                     Text(money(total),
                         style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
                     Text('${subs.length} معاملة',
-                        style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 11)),
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 11)),
                   ],
                 ),
               ),
@@ -123,7 +123,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: c.gold.withOpacity(0.15),
+                        color: c.gold.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(Icons.receipt, color: c.goldDark),

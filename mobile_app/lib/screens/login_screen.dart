@@ -206,7 +206,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             height: 1.3)),
                     const SizedBox(height: 10),
                     Text('نظام الإدارة الشامل · أونلاين · الإصدار 9.0',
-                        style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 13)),
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 13)),
                   ],
                 ),
               ),
@@ -232,8 +232,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: () => setState(() => step = LoginStep.biometric),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white,
-                      side: BorderSide(color: Colors.white.withOpacity(0.35)),
-                      backgroundColor: Colors.white.withOpacity(0.10),
+                      side: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
+                      backgroundColor: Colors.white.withValues(alpha: 0.10),
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
@@ -249,12 +249,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       .push(MaterialPageRoute(builder: (_) => const ServersScreen()));
                   if (mounted) setState(() {});
                 },
-                icon: Icon(Icons.dns, size: 16, color: Colors.white.withOpacity(0.7)),
+                icon: Icon(Icons.dns, size: 16, color: Colors.white.withValues(alpha: 0.7)),
                 label: Text('الخادم: ${ServerProfiles.active?.name ?? AppConfig.baseUrl}',
-                    style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
               ),
               Text(AppConfig.isSecureBaseUrl ? 'اتصال مشفر HTTPS' : 'شبكة محلية (غير مشفر)',
-                  style: TextStyle(color: Colors.white.withOpacity(0.35), fontSize: 11)),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 11)),
             ],
           ),
         ),
@@ -280,7 +280,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: TextButton.icon(
                 onPressed: onBack,
                 style: TextButton.styleFrom(
-                  backgroundColor: Colors.white.withOpacity(0.16),
+                  backgroundColor: Colors.white.withValues(alpha: 0.16),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 ),
@@ -309,7 +309,7 @@ class _LoginScreenState extends State<LoginScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: c.err.withOpacity(0.08),
+        color: c.err.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -412,7 +412,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: 64,
                       height: 64,
                       decoration: BoxDecoration(
-                        color: c.primary.withOpacity(0.1),
+                        color: c.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(18),
                       ),
                       child: Icon(Icons.security, color: c.primary, size: 30),
@@ -471,7 +471,7 @@ class _LoginScreenState extends State<LoginScreen> {
           counterText: '',
           contentPadding: const EdgeInsets.symmetric(vertical: 12),
           filled: true,
-          fillColor: _otp[i].text.isEmpty ? c.surf : c.primary.withOpacity(0.06),
+          fillColor: _otp[i].text.isEmpty ? c.surf : c.primary.withValues(alpha: 0.06),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(color: c.border, width: 1.5),
@@ -508,7 +508,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text('المصادقة البيومترية',
-                        style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 14)),
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 14)),
                     const SizedBox(height: 8),
                     const Text('تحقّق بهويتك الحيوية\nلفتح الجلسة المحفوظة',
                         textAlign: TextAlign.center,
@@ -521,7 +521,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(color: AppColors.light.gold, width: 3),
-                        color: AppColors.light.gold.withOpacity(0.1),
+                        color: AppColors.light.gold.withValues(alpha: 0.1),
                       ),
                       child: _busy
                           ? const Padding(

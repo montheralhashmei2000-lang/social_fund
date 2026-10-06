@@ -76,7 +76,7 @@ class _BeneficiariesScreenState extends State<BeneficiariesScreen> {
                         height: 44,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: c.primary.withOpacity(0.1),
+                          color: c.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(b.fullName.isNotEmpty ? b.fullName[0] : '?',

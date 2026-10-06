@@ -124,7 +124,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
             height: 46,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: (a.isBank ? c.info : a.isWallet ? c.gold : c.primary).withOpacity(0.1),
+              color: (a.isBank ? c.info : a.isWallet ? c.gold : c.primary).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -165,7 +165,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     margin: const EdgeInsets.only(top: 3),
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: c.info.withOpacity(0.1),
+                      color: c.info.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text('مطابقة كشف الحساب',
@@ -206,19 +206,19 @@ class _AccountsScreenState extends State<AccountsScreen> {
             SwitchListTile(
               title: const Text('حساب بنكي'),
               value: isBank,
-              activeColor: App.of(context).primary,
+              activeThumbColor: App.of(context).primary,
               onChanged: (v) => setSheet(() { isBank = v; if (v) isWallet = false; }),
             ),
             SwitchListTile(
               title: const Text('محفظة إلكترونية'),
               value: isWallet,
-              activeColor: App.of(context).primary,
+              activeThumbColor: App.of(context).primary,
               onChanged: (v) => setSheet(() { isWallet = v; if (v) isBank = false; }),
             ),
             SwitchListTile(
               title: const Text('صندوق نقدي'),
               value: isCash,
-              activeColor: App.of(context).primary,
+              activeThumbColor: App.of(context).primary,
               onChanged: (v) => setSheet(() => isCash = v),
             ),
             if (isBank) ...[

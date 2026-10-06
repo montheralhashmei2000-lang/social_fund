@@ -115,7 +115,7 @@ class _UsersScreenState extends State<UsersScreen> {
             children: [
               const Text('الحساب مفعل'),
               const Spacer(),
-              Switch(value: active, activeColor: App.of(context).primary, onChanged: (v) => active = v),
+              Switch(value: active, activeThumbColor: App.of(context).primary, onChanged: (v) => active = v),
             ],
           ),
           UiButton(
@@ -187,7 +187,7 @@ class _UsersScreenState extends State<UsersScreen> {
                         height: 42,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: u.isActive ? c.primary.withOpacity(0.1) : c.mu.withOpacity(0.15),
+                          color: u.isActive ? c.primary.withValues(alpha: 0.1) : c.mu.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(

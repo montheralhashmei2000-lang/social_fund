@@ -1,20 +1,38 @@
-# الصندوق الاجتماعي التنموي — النظام المتكامل (حزمة واحدة)
+# الصندوق الاجتماعي التنموي — النظام المتكامل
 
-خادم **FastAPI** + تطبيق **Flutter** أندرويد في مشروع واحد، بمعمارية محاسبية كاملة (قيد مزدوج) وتصميم كلاسيكي حديث (أخضر داكن/ذهبي، خط أميري، RTL).
+تطبيق **Flutter** أندرويد (أونلاين فقط) يعمل مع **أحد خادمين** في هذا المستودع، بمعمارية محاسبية كاملة (قيد مزدوج) وتصميم كلاسيكي حديث (أخضر داكن/ذهبي، خط أميري، RTL).
+
+## الخادمان
+| | **Dart** (`SocialFund-Dart-Server/`) — الاتجاه الحالي | **FastAPI** (`backend/`) |
+|---|---|---|
+| التقنية | Shelf + SQLite (ملف واحد) | Python + PostgreSQL |
+| النشر | `deploy/` (Docker + Caddy + Oracle) أو `deploy/run-local.ps1` محلياً | `docker-compose.yml` |
+| الدخول | كلمة مرور فقط (OTP معطّل) | كلمة مرور + OTP عبر SMS |
+| العملات المتعددة | نعم | لا |
+| الاختبارات | `cd SocialFund-Dart-Server && dart test` | `cd backend && python -m pytest -q` (57) |
+
+التطبيق يدعم **عدة خوادم** (مثلاً محلي وسحابي) ويبدّل بينها من شاشة «الخوادم» بلا إعادة بناء؛ `http` مسموح للشبكة المحلية فقط و`https` لما سواها.
 
 ## البنية
 ```
-SocialFund/
+The_fund/
+├── SocialFund-Dart-Server/   خادم Dart (الاتجاه الحالي)
+├── deploy/                   نشر Dart: deploy.ps1 (سحابي) · run-local.ps1 (محلي) · build-apk.ps1
 ├── backend/                  خادم FastAPI (محاسبة، سندات، خيري، RBAC، تشفير حقلي، تدقيق)
-│   ├── app/                  الكود (models/routers/services)
-│   ├── alembic/              هجرات قاعدة البيانات (0001–0006)
-│   └── tests/                46 اختبار pytest
-├── mobile_app/               تطبيق Flutter (22 شاشة)
-├── docs/SECURITY_REPORT.md   تقرير الأمان والفحوص مع الاختبارات المرافقة
-├── scripts/run_backend_dev.sh
-├── scripts/build_apk.sh
-└── docker-compose.yml
+│   ├── alembic/              هجرات قاعدة البيانات (0001–0007)
+│   └── tests/                57 اختبار pytest
+├── mobile_app/               تطبيق Flutter
+├── docs/SECURITY_REPORT.md   تقرير الأمان والفحوص
+└── docker-compose.yml        نشر FastAPI
 ```
+
+### تشغيل خادم Dart محلياً (شبكة المكتب)
+```powershell
+.\deployun-local.ps1      # يولّد كلمة مرور المدير ويطبع العناوين لإضافتها في التطبيق
+```
+البيانات في `local-data\` (قاعدة SQLite + المفاتيح): انسخه كاملاً عند الانتقال إلى الخادم السحابي.
+
+> الأقسام التالية تخص خادم FastAPI.
 
 ## التشغيل السريع
 
@@ -48,7 +66,7 @@ flutter build apk --release --dart-define=API_BASE_URL=... --dart-define=APP_ENV
 
 ## الفحوص
 ```bash
-cd backend && python3 -m pytest -q          # 46 اختبار
+cd backend && python3 -m pytest -q          # 57 اختبار
 cd mobile_app && flutter analyze && flutter test
 ```
 

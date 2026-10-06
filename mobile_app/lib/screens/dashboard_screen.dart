@@ -88,7 +88,7 @@ class DashboardScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('صافي الخزينة الحالي',
-                  style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 12)),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 12)),
               Text(money(data.treasuryBalance),
                   style: TextStyle(
                       color: data.treasuryBalance >= 0 ? const Color(0xFF69F0AE) : const Color(0xFFFF8A80),
@@ -260,7 +260,7 @@ class DashboardScreen extends StatelessWidget {
                         height: 22,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: e.key < 3 ? c.gold.withOpacity(0.2) : c.bg,
+                          color: e.key < 3 ? c.gold.withValues(alpha: 0.2) : c.bg,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text('${e.key + 1}',
@@ -275,7 +275,7 @@ class DashboardScreen extends StatelessWidget {
                         height: 32,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: c.primary.withOpacity(0.1),
+                          color: c.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(m.name.isNotEmpty ? m.name[0] : '?',
@@ -326,14 +326,14 @@ class DashboardScreen extends StatelessWidget {
   Widget _chip(String label, String value) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.12),
+          color: Colors.white.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label,
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white.withOpacity(0.7))),
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white.withValues(alpha: 0.7))),
             Text(value,
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
           ],
@@ -390,7 +390,7 @@ class DashboardScreen extends StatelessWidget {
           Container(
             width: 46,
             height: 46,
-            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
             child: Icon(icon, color: color, size: 21),
           ),
           const SizedBox(height: 5),
