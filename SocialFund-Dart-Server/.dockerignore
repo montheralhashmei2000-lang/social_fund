@@ -1,0 +1,8 @@
+.dart_tool/
+build/
+test/
+*.db
+*.db-shm
+*.db-wal
+*.secret
+.git/

@@ -1,0 +1,36 @@
+# تشغيل الخادم + شهادة HTTPS تلقائية (Caddy). يُنشأ .env تلقائياً بواسطة install.sh.
+services:
+  server:
+    build: ./server
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET missing in .env}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY missing in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      DATA_DIR: /data
+      ASSETS_DIR: /app/assets
+      PORT: "8000"
+    volumes:
+      - ./data:/data
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN missing in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - server
+
+volumes:
+  caddy_data:
+  caddy_config:
