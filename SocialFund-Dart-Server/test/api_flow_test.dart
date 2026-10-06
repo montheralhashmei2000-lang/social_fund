@@ -147,6 +147,35 @@ void main() {
     expect(await st('bogus'), 400);
   });
 
+  test('أمان: لا تجاوز لانتقالات المساعدة بـ PUT ولا حذف لمصروفة، والمدير لا يقفل نفسه', () async {
+    final (_, m) = await call('POST', '/members', token: admin, body: {
+      'name': 'عضو أمان', 'national_id': '999888777', 'phone': '0700', 'monthly_subscription': 100
+    });
+    final (_, aid) = await call('POST', '/aids', token: admin, body: {
+      'member_id': m['id'], 'aid_type': 'طارئة', 'amount': 500, 'request_date': '2026-10-03'
+    });
+    // PUT كان يقبل أي حالة واسم مراجع من العميل
+    final put = await call('PUT', '/aids/${aid['id']}',
+        body: {'status': 'مصروفة', 'reviewer_name': 'مزوَّر'}, token: admin);
+    expect(put.$1, isNot(200));
+    final (_, cur) = await call('GET', '/aids/${aid['id']}', token: admin);
+    expect(cur['status'], 'قيد المراجعة');
+    // الصرف النهائي لا يُحذف
+    await call('PATCH', '/aids/${aid['id']}/status', body: {'status': 'معتمدة'}, token: admin);
+    await call('PATCH', '/aids/${aid['id']}/status', body: {'status': 'مصروفة'}, token: admin);
+    expect((await call('DELETE', '/aids/${aid['id']}', token: admin)).$1, 400);
+    // المدير لا يعطّل حسابه ولا يخفض دوره
+    final (_, me) = await call('GET', '/auth/me', token: admin);
+    expect((await call('PUT', '/users/${me['id']}', body: {'is_active': false}, token: admin)).$1, 400);
+    expect((await call('PUT', '/users/${me['id']}', body: {'role': 'viewer'}, token: admin)).$1, 400);
+  });
+
+  test('ترويسات الأمان موجودة في الردود', () async {
+    final res = await app(Request('GET', Uri.parse('http://localhost/health')));
+    expect(res.headers['x-content-type-options'], 'nosniff');
+    expect(res.headers['x-frame-options'], 'DENY');
+  });
+
   test('إلغاء السند: قيد عكسي وبقاء السند ملغياً واستبعاده من إجمالي المانح', () async {
     final (_, d) = await call('POST', '/donors', token: admin, body: {'name': 'محسن'});
     final (s, v) = await call('POST', '/vouchers', token: admin, body: {

@@ -24,9 +24,21 @@ class _LoginThrottle {
     return list.length >= _max;
   }
 
-  static void fail(String key) => _fails.putIfAbsent(key, () => []).add(DateTime.now());
+  static const _maxKeys = 5000;
+
+  static void fail(String key) {
+    if (_fails.length >= _maxKeys && !_fails.containsKey(key)) {
+      // سقف للذاكرة: أسماء مستخدمين عشوائية كثيرة لا تُضخّم الخريطة بلا حد.
+      final cutoff = DateTime.now().subtract(_window);
+      _fails.removeWhere((_, l) => l.every((t) => t.isBefore(cutoff)));
+      if (_fails.length >= _maxKeys) _fails.remove(_fails.keys.first);
+    }
+    _fails.putIfAbsent(key, () => []).add(DateTime.now());
+  }
   static void clear(String key) => _fails.remove(key);
 }
+
+String? _dummyHash;
 
 class AuthRoutes {
   final AppDatabase db;
@@ -47,6 +59,9 @@ class AuthRoutes {
       final repo = UsersRepository(db);
       final user = await repo.byUsername(username);
       if (user == null || !user.isActive) {
+        // نفس زمن التحقق الفعلي حتى لا يُكشف وجود اسم المستخدم من سرعة الرد.
+        _dummyHash ??= await hashPassword('timing-equalizer');
+        await verifyPassword(password, _dummyHash!);
         _LoginThrottle.fail(key);
         return jsonErr(401, 'Invalid credentials');
       }

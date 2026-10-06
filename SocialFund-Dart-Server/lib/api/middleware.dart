@@ -17,6 +17,18 @@ Middleware corsMiddleware() => (inner) => (req) async {
   return res.change(headers: {...res.headers, ..._cors});
 };
 
+/// ترويسات أمان أساسية لكل رد (الواجهة تطبيق جوال، لكن المسارات قد تُفتح في متصفح).
+Middleware securityHeadersMiddleware() => (inner) => (req) async {
+  final res = await inner(req);
+  return res.change(headers: {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'no-referrer',
+    'Cache-Control': 'no-store',
+    ...res.headers,
+  });
+};
+
 Middleware jsonErrorMiddleware() => (inner) => (req) async {
   try { return await inner(req); }
   catch (e, st) {

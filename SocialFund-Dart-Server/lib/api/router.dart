@@ -61,6 +61,7 @@ Handler buildHandler(AppDatabase db) {
       .addMiddleware(authIfApiMiddleware(db))
       .addMiddleware(jsonErrorMiddleware())
       .addMiddleware(corsMiddleware())
+      .addMiddleware(securityHeadersMiddleware())
       .addHandler(root.call);
 }
 

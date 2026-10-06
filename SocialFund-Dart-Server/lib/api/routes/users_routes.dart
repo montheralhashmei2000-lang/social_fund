@@ -54,6 +54,11 @@ class UsersRoutes {
       if (newRole != null && !const {'admin', 'accountant', 'reviewer', 'viewer'}.contains(newRole)) {
         return jsonErr(400, 'دور غير صالح');
       }
+      // منع المدير من قفل النظام بتعطيل حسابه أو خفض دوره بنفسه.
+      if (id == req.context['userId'] &&
+          (b['is_active'] == false || (newRole != null && newRole != 'admin'))) {
+        return jsonErr(400, 'لا يمكنك تعطيل حسابك أو خفض صلاحياتك بنفسك');
+      }
       final u = await repo.update(id,
         fullName: b['full_name'] as String?,
         role: b['role'] as String?,

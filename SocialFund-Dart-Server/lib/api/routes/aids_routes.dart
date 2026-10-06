@@ -58,20 +58,14 @@ class AidsRoutes {
       return jsonOk(_toJson(a));
     });
 
-    r.put('/aids/<id>', (Request req, String id) async {
-      final b = jsonDecode(await req.readAsString()) as Map<String, dynamic>;
-      final status = (b['status'] ?? '').toString().trim();
-      if (status.isEmpty) return jsonErr(400, 'status required');
-      final a = await repo.updateStatus(id, status: status,
-        reviewerName: b['reviewer_name'] as String?,
-        reviewerId: req.context['userId'] as String?,
-        note: b['note'] as String?,
-      );
-      if (a == null) return jsonErr(404, 'Aid not found');
-      return jsonOk(_toJson(a));
-    });
+    // تغيير الحالة يتم فقط عبر PATCH /aids/<id>/status (انتقالات صحيحة + اسم المراجع
+    // من الخادم). كان هنا PUT يقبل أي حالة واسم مراجع من العميل فيتجاوز ذلك.
 
     r.delete('/aids/<id>', (Request req, String id) async {
+      final existing = await repo.byId(id);
+      if (existing != null && existing.status == 'مصروفة') {
+        return jsonErr(400, 'لا يمكن حذف طلب تم صرفه بالفعل');
+      }
       final ok = await repo.softDelete(id);
       if (!ok) return jsonErr(404, 'Aid not found');
       return jsonOk({'ok': true});
