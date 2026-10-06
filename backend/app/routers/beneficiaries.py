@@ -173,8 +173,8 @@ def pay_periodic_aid(aid_id: str, payload: PeriodicPayIn, db: Session = Depends(
     )
     db.add(entry)
     db.flush()
-    seq = (db.query(func.count(JournalEntry.id)).scalar() or 0) + 1
-    entry.entry_no = f"JE-{seq:06d}"
+    from app.services.sequence_service import next_entry_no
+    entry.entry_no = next_entry_no(db)
     db.add_all([
         JournalLine(entry_id=entry.id, account_id=expense_acc.id, debit=amount, credit=0),
         JournalLine(entry_id=entry.id, account_id=from_acc.id, debit=0, credit=amount),

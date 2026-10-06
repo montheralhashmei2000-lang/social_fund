@@ -134,8 +134,8 @@ def transfer(payload: TransferIn, db: Session = Depends(get_db), user: User = De
     )
     db.add(entry)
     db.flush()
-    seq = (db.query(func.count(JournalEntry.id)).scalar() or 0) + 1
-    entry.entry_no = f"JE-{seq:06d}"
+    from app.services.sequence_service import next_entry_no
+    entry.entry_no = next_entry_no(db)
     db.add_all([
         JournalLine(entry_id=entry.id, account_id=dst.id, debit=amount, credit=0,
                     memo=f"تحويل وارد من {src.name}"),

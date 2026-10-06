@@ -48,8 +48,7 @@ def next_voucher_no(db: Session, kind: str) -> str:
 
 
 def _next_entry_no(db: Session) -> str:
-    seq = (db.query(func.count(JournalEntry.id)).scalar() or 0) + 1
-    return f"JE-{seq:06d}"
+    return sequence_service.next_entry_no(db)
 
 
 def _party(db: Session, member_id, donor_id, beneficiary_id, party_name):

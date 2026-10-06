@@ -120,9 +120,16 @@ def verify_otp_login(payload: OtpVerifyRequest, request: Request, db: Session = 
             f"تم حظر محاولات التحقق مؤقتاً بسبب تكرار المحاولات الفاشلة. حاول مجدداً بعد {minutes} دقيقة.",
         )
 
+    # حد إضافي لكل رمز تحقق بغض النظر عن IP (ترويسة X-Forwarded-For قابلة للتزوير)
+    allowed_tok, _ = rate_limit_service.check_allowed(None, payload.otp_token)
+    if not allowed_tok:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
+                            "تم حظر محاولات التحقق مؤقتاً بسبب تكرار المحاولات الفاشلة.")
+
     user_id = verify_otp(db, payload.otp_token, payload.code)
     if not user_id:
         rate_limit_service.record_failure(ip, payload.otp_token)
+        rate_limit_service.record_failure(None, payload.otp_token)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "رمز التحقق غير صحيح أو منتهي الصلاحية")
 
     user = db.query(User).filter(User.id == user_id).first()

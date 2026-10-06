@@ -16,6 +16,11 @@ services:
       SECRET_KEY: ${SECRET_KEY:?ضع SECRET_KEY في .env}
       FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY:?ضع FIELD_ENCRYPTION_KEY في .env}
       ENV: production
+      # بدونه يرفض الخادم الإقلاع في الإنتاج (CORS="*" ممنوع) — ضع نطاقاتك في .env
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://${DOMAIN:-localhost}}
+      MEDIA_DIR: /data/media
+    volumes:
+      - media:/data/media
     ports:
       - "8000:8000"
     depends_on:
@@ -53,3 +58,4 @@ volumes:
   caddydata:
   caddyconfig:
   pgdata:
+  media:

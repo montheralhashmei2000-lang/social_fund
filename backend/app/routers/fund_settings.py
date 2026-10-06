@@ -66,8 +66,8 @@ async def upload_logo_file(request: Request, db: Session = Depends(get_db),
     if f is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "الملف مفقود")
     ext = (os.path.splitext(f.filename or "")[1] or ".png").lstrip(".").lower()
-    if ext not in ("png", "jpg", "jpeg", "webp", "svg"):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "صيغة غير مدعومة (png/jpg/webp/svg)")
+    if ext not in ("png", "jpg", "jpeg", "webp"):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "صيغة غير مدعومة (png/jpg/webp) — SVG مرفوض لأنه قد يحمل سكربتات")
     data = await f.read()
     if len(data) > 5 * 1024 * 1024:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "أقصى حجم 5 ميغابايت")

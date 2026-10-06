@@ -130,6 +130,10 @@ def update_user(user_id: str, payload: UserUpdate, db: Session = Depends(get_db)
         raise HTTPException(status.HTTP_404_NOT_FOUND, "المستخدم غير موجود")
 
     updates = payload.model_dump(exclude_unset=True)
+    if str(admin.id) == str(target.id) and (
+        updates.get("is_active") is False or ("role" in updates and updates["role"] != RoleEnum.admin.value)
+    ):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "لا يمكنك تعطيل حسابك أو خفض صلاحياتك بنفسك")
     if "role" in updates:
         try:
             updates["role"] = RoleEnum(updates["role"])

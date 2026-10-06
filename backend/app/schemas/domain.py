@@ -1,7 +1,7 @@
 # app/schemas/domain.py
 from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SyncFieldsOut(BaseModel):
@@ -46,7 +46,7 @@ class AidCreate(BaseModel):
     beneficiary_id: Optional[str] = None
     member_id: str
     aid_type: str
-    amount: int
+    amount: int = Field(gt=0)
     request_date: str
     note: Optional[str] = None
 
@@ -86,7 +86,7 @@ class TreasuryCreate(BaseModel):
     type: str
     category: str
     description: str
-    amount: int
+    amount: int = Field(gt=0)
     entry_date: str
 
 

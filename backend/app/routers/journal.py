@@ -123,6 +123,8 @@ def create_entry(payload: EntryIn, db: Session = Depends(get_db), user: User = D
             f"القيد غير متوازن: مدين {total_debit} ≠ دائن {total_credit}",
         )
     for l in payload.lines:
+        if l.debit < 0 or l.credit < 0:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "المبالغ يجب ألا تكون سالبة")
         if (l.debit > 0 and l.credit > 0) or (l.debit == 0 and l.credit == 0):
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "كل سطر إما مدين أو دائن وليس الاثنين معاً أو صفراً")
         if not db.query(Account).filter(Account.id == l.account_id).first():
@@ -143,8 +145,8 @@ def create_entry(payload: EntryIn, db: Session = Depends(get_db), user: User = D
     )
     db.add(entry)
     db.flush()
-    from app.services.sequence_service import next_number
-    entry.entry_no = f"JE-{next_number(db, 'journal_entry'):06d}"
+    from app.services.sequence_service import next_entry_no
+    entry.entry_no = next_entry_no(db)
     db.add_all([
         JournalLine(entry_id=entry.id, account_id=l.account_id,
                     debit=Decimal(str(l.debit)), credit=Decimal(str(l.credit)), memo=l.memo)

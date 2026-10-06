@@ -17,3 +17,13 @@ def next_number(db, kind: str) -> int:
     row.value = (row.value or 0) + 1
     db.flush()
     return row.value
+
+
+def next_entry_no(db) -> str:
+    """رقم قيد يومية فريد (JE-000123) من عدّاد ذرّي، مع تخطي أي رقم موجود مسبقاً
+    (قيود قديمة رُقّمت بعدّ الصفوف) فلا يقع تعارض مع القيد UNIQUE على entry_no."""
+    from app.models.accounting import JournalEntry
+    while True:
+        no = f"JE-{next_number(db, 'journal_entry'):06d}"
+        if not db.query(JournalEntry.id).filter(JournalEntry.entry_no == no).first():
+            return no
