@@ -9,6 +9,9 @@ import '../core/api_client.dart';
 import '../core/config.dart';
 import '../core/rbac.dart';
 import '../core/secure_store.dart';
+import '../core/server_profiles.dart';
+import 'currencies_screen.dart';
+import 'servers_screen.dart';
 import '../core/theme.dart';
 import '../services/api_service.dart';
 import '../services/push_service.dart';
@@ -279,6 +282,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _link(context,
                 icon: Icons.shield, color: c.ok, label: 'بيانات الصندوق والهوية',
                 sub: 'الاسم والشعار وبيانات التواصل الرسمية', tab: Tabs.fundInfo),
+          _row(
+            context,
+            icon: Icons.currency_exchange,
+            color: c.ok,
+            label: 'العملات وأسعار الصرف',
+            sub: Rbac.can(user.role, 'settings')
+                ? 'تعريف العملات وتحديث الأسعار'
+                : 'اختيار عملة عرض المبالغ على هذا الجهاز',
+            onTap: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const CurrenciesScreen())),
+          ),
           if (Rbac.can(user.role, 'reports'))
             _link(context,
                 icon: Icons.stacked_line_chart, color: c.info, label: 'القوائم المالية',
@@ -324,8 +338,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             context,
             icon: Icons.dns,
             color: c.primary,
-            label: 'عنوان الخادم',
-            sub: AppConfig.apiBaseUrl,
+            label: 'الخوادم (${ServerProfiles.active?.name ?? ''})',
+            sub: '${AppConfig.baseUrl} · اضغط للتبديل أو الإضافة',
+            onTap: () async {
+              await Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const ServersScreen()));
+              if (mounted) setState(() {});
+            },
           ),
           _row(
             context,

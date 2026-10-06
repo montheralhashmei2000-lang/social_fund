@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:dio/dio.dart';
 
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -210,13 +209,11 @@ class _DonorsScreenState extends State<DonorsScreen> {
 
   Future<void> _certificate(Donor d) async {
     try {
-      final res = await ApiService.instance.dio.request<List<int>>(
-        '/donors/${d.id}/certificate',
-        options: Options(responseType: ResponseType.bytes),
-      );
+      final bytes =
+          await ApiClient.instance.requestBytes('GET', '/donors/${d.id}/certificate');
       final dir = await getTemporaryDirectory();
       final f = File('${dir.path}/certificate_${d.name}.pdf');
-      await f.writeAsBytes(res.data ?? <int>[]);
+      await f.writeAsBytes(bytes);
       await Share.shareXFiles([XFile(f.path)], text: 'شهادة شكر - ${d.name}');
     } on ApiException catch (e) {
       if (mounted) uiToast(context, e.message, error: true);

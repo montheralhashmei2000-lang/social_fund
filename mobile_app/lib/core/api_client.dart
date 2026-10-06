@@ -1,4 +1,6 @@
 import 'package:dio/dio.dart';
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 
 import 'config.dart';
@@ -34,13 +36,18 @@ class ApiClient {
   String? _refreshToken;
   Future<void>? _refreshFuture;
 
+  /// يزداد كل مرة تنتهي فيها الجلسة نهائياً (فشل التجديد) - تستمع له واجهة
+  /// التطبيق لتعيد المستخدم إلى شاشة الدخول.
+  final ValueNotifier<int> sessionExpired = ValueNotifier<int>(0);
+
   ApiClient._() {
     dio = Dio(BaseOptions(
       baseUrl: AppConfig.apiBaseUrl,
       connectTimeout: const Duration(seconds: 20),
       receiveTimeout: const Duration(seconds: 40),
       headers: {'Content-Type': 'application/json'},
-      validateStatus: (code) => code != null && code < 500,
+      // أي كود ≥ 400 يمر عبر onError: 401 يفعّل تجديد الجلسة، والباقي يُحوَّل لرسالة خادم.
+      validateStatus: (code) => code != null && code < 400,
     ));
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
@@ -63,6 +70,7 @@ class ApiClient {
           return handler.resolve(retry);
         } on ApiException catch (_) {
           await clearTokens();
+          sessionExpired.value++;
           return handler.next(e);
         }
       },
@@ -70,6 +78,9 @@ class ApiClient {
   }
 
   bool get hasTokens => _accessToken != null;
+
+  /// تغيير عنوان الخادم وقت التشغيل (تبديل بين الخادم المحلي والسحابي).
+  void useBaseUrl(String url) => dio.options.baseUrl = url;
 
   Future<void> loadStoredTokens() async {
     _accessToken = await SecureStore.accessToken();
@@ -124,24 +135,54 @@ class ApiClient {
           data: data,
           queryParameters: query,
           options: Options(method: method, extra: {'skipAuth': skipAuth}));
-      final status = res.statusCode ?? 0;
-      if (status >= 400) {
-        final body = res.data;
-        String msg = 'خطأ في الخادم ($status)';
-        if (body is Map && body['detail'] != null) msg = body['detail'].toString();
-        if (status == 401) throw AuthException(msg);
-        throw ApiException(msg, status: status);
-      }
       return res.data;
     } on DioException catch (e) {
-      final type = e.type;
-      final networkIssue = type == DioExceptionType.connectionError ||
-          type == DioExceptionType.connectionTimeout ||
-          type == DioExceptionType.receiveTimeout ||
-          type == DioExceptionType.sendTimeout;
-      if (networkIssue) throw NetworkException();
-      if (e.error is ApiException) throw e.error as ApiException;
-      throw NetworkException();
+      throw _toException(e);
     }
+  }
+
+  /// تنزيل ملف (PDF/نسخة احتياطية...) بنفس معالجة الجلسة والأخطاء.
+  Future<List<int>> requestBytes(String method, String path,
+      {Object? data, Map<String, dynamic>? query}) async {
+    try {
+      final res = await dio.request<List<int>>(path,
+          data: data,
+          queryParameters: query,
+          options: Options(method: method, responseType: ResponseType.bytes));
+      return res.data ?? <int>[];
+    } on DioException catch (e) {
+      throw _toException(e);
+    }
+  }
+
+  /// يحوّل خطأ Dio إلى استثناء التطبيق: انقطاع الشبكة ≠ رد الخادم بخطأ.
+  ApiException _toException(DioException e) {
+    if (e.error is ApiException) return e.error as ApiException;
+    final res = e.response;
+    if (res != null) {
+      final status = res.statusCode ?? 0;
+      final msg = _messageFrom(res.data) ?? 'خطأ في الخادم ($status)';
+      return status == 401 ? AuthException(msg) : ApiException(msg, status: status);
+    }
+    return NetworkException();
+  }
+
+  /// يستخرج رسالة الخطأ من جسم الرد (نص JSON أو بايتات): `detail` نص أو قائمة `msg`.
+  static String? _messageFrom(Object? body) {
+    try {
+      var b = body;
+      if (b is List<int>) b = jsonDecode(utf8.decode(b));
+      if (b is String) b = jsonDecode(b);
+      if (b is Map && b['detail'] != null) {
+        final d = b['detail'];
+        if (d is List && d.isNotEmpty) {
+          final first = d.first;
+          if (first is Map && first['msg'] != null) return first['msg'].toString();
+        }
+        return d.toString();
+      }
+      if (b is Map && b['error'] != null) return b['error'].toString();
+    } catch (_) {}
+    return null;
   }
 }

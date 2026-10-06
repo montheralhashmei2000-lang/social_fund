@@ -11,10 +11,17 @@ import 'package:flutter/foundation.dart';
 class AppConfig {
   AppConfig._();
 
-  static const String apiBaseUrl = String.fromEnvironment(
+  /// العنوان الافتراضي وقت البناء (يُستخدم إن لم يحفظ المستخدم أي خادم).
+  static const String defaultBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'http://10.0.2.2:8000',
   );
+
+  /// العنوان الفعّال حالياً: يُستبدل وقت التشغيل عند اختيار خادم من «الخوادم».
+  static String baseUrl = defaultBaseUrl;
+
+  /// للتوافق مع الاستخدامات القديمة.
+  static String get apiBaseUrl => baseUrl;
 
   static const String appEnv = String.fromEnvironment(
     'APP_ENV',
@@ -25,7 +32,7 @@ class AppConfig {
 
   /// في الإنتاج يجب أن يكون العنوان https - أي عنوان http يُسجَّل كتحذير خطير.
   static bool get isSecureBaseUrl {
-    final uri = Uri.tryParse(apiBaseUrl);
+    final uri = Uri.tryParse(baseUrl);
     return uri != null && uri.scheme == 'https';
   }
 

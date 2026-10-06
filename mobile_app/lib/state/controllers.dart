@@ -8,6 +8,7 @@ import '../core/api_client.dart';
 import '../core/models.dart';
 import '../core/rbac.dart';
 import '../core/secure_store.dart';
+import '../core/server_profiles.dart';
 import '../services/api_service.dart';
 import '../services/push_service.dart';
 
@@ -65,7 +66,24 @@ class AuthController extends ChangeNotifier {
   bool needsBiometricUnlock = false;
   bool biometricsAvailable = false;
 
+  AuthController() {
+    // انتهاء الجلسة نهائياً (فشل تجديد الرمز) ← العودة لشاشة الدخول.
+    ApiClient.instance.sessionExpired.addListener(() {
+      user = null;
+      needsBiometricUnlock = false;
+      notifyListeners();
+    });
+  }
+
+  /// بعد التبديل إلى خادم آخر: الجلسة السابقة لا تصلح له.
+  Future<void> onServerChanged() async {
+    user = null;
+    needsBiometricUnlock = false;
+    notifyListeners();
+  }
+
   Future<void> boot() async {
+    await ServerProfiles.load();
     await ApiClient.instance.loadStoredTokens();
     biometricsAvailable = await _checkBiometrics();
     needsBiometricUnlock =
@@ -102,8 +120,22 @@ class AuthController extends ChangeNotifier {
   }
 
   /// خطوة 1: اسم المستخدم وكلمة المرور - يعرف بيانات خطوة OTP.
-  Future<Map<String, dynamic>> login(String username, String password) =>
-      _api.login(username, password);
+  ///
+  /// بعض الخوادم (Dart) لا تفعّل OTP وتعيد رموز الدخول مباشرة؛ عندها تُحفظ الجلسة
+  /// هنا ويحمل الرد `logged_in: true` فلا تظهر شاشة الرمز.
+  Future<Map<String, dynamic>> login(String username, String password) async {
+    final res = await _api.login(username, password);
+    final access = res['access_token'];
+    final refresh = res['refresh_token'];
+    if (access is String && refresh is String) {
+      await ApiClient.instance.saveTokens(access, refresh);
+      user = await _api.me();
+      await PushService.onLogin();
+      notifyListeners();
+      return {...res, 'logged_in': true};
+    }
+    return res;
+  }
 
   /// خطوة 2: التحقق من الرمز وحفظ الجلسة.
   Future<void> verifyOtp(String otpToken, String code) async {

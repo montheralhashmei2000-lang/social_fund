@@ -7,6 +7,7 @@ import '../core/rbac.dart';
 import '../core/theme.dart';
 import '../services/push_service.dart';
 import '../state/controllers.dart';
+import '../state/currency_controller.dart';
 import '../widgets/ui.dart';
 import 'accounts_screen.dart';
 import 'aids_screen.dart';
@@ -79,7 +80,11 @@ class _HomeShellState extends State<HomeShell> {
     super.initState();
     PushService.openTab.addListener(_onPushTab);
     PushService.foregroundMessage.addListener(_onForeground);
-    WidgetsBinding.instance.addPostFrameCallback((_) => refresh());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      refresh();
+      // خوادم بلا مسار العملات تُبقي المبالغ بالريال (الخطأ غير حرج داخل load).
+      context.read<CurrencyController>().load();
+    });
   }
 
   @override

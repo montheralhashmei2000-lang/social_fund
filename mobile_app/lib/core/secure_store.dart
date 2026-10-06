@@ -43,6 +43,28 @@ class SecureStore {
 
   static Future<bool> isDarkMode() async => await _storage.read(key: _darkModeKey) == '1';
 
+  static const String _displayCurrencyKey = 'sf_display_currency';
+  static const String _serversKey = 'sf_servers';
+  static const String _activeServerKey = 'sf_active_server';
+
+  /// عملة العرض المفضّلة لهذا الجهاز (null = افتراضية النظام).
+  static Future<String?> displayCurrency() async {
+    final v = await _storage.read(key: _displayCurrencyKey);
+    return (v == null || v.isEmpty) ? null : v;
+  }
+
+  static Future<void> setDisplayCurrency(String? code) => code == null || code.isEmpty
+      ? _storage.delete(key: _displayCurrencyKey)
+      : _storage.write(key: _displayCurrencyKey, value: code);
+
+  /// قائمة الخوادم المحفوظة (JSON) ومعرّف الخادم النشط.
+  static Future<String?> serversJson() => _storage.read(key: _serversKey);
+  static Future<void> saveServersJson(String json) =>
+      _storage.write(key: _serversKey, value: json);
+  static Future<String?> activeServerId() => _storage.read(key: _activeServerKey);
+  static Future<void> setActiveServerId(String id) =>
+      _storage.write(key: _activeServerKey, value: id);
+
   static Future<void> clearAll() => _storage.deleteAll();
 
   static Future<String> deviceId() async {

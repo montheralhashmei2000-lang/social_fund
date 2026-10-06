@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../core/api_client.dart';
+import '../core/currency.dart';
 import '../core/models.dart';
 
 /// كل استدعاءات الخادم في مكان واحد - النظام أونلاين فقط:
@@ -164,9 +165,7 @@ class ApiService {
 
   /// سند PDF رسمي من الخادم (ببيانات الصندوق ورقم القيد المرتبط).
   Future<List<int>> voucherPdfBytes(String id) async {
-    final res = await dio.get<List<int>>('/vouchers/$id/pdf',
-        options: Options(responseType: ResponseType.bytes));
-    return res.data ?? <int>[];
+    return _c.requestBytes('GET', '/vouchers/$id/pdf');
   }
 
   // ================= Messages =================
@@ -249,21 +248,12 @@ class ApiService {
 
   // ================= Backup (admin) =================
 
-  Future<List<int>> downloadBackup() async {
-    final res = await _c.dio.post('/backup/create',
-        options: Options(responseType: ResponseType.bytes));
-    if (res.statusCode != 200) throw ApiException('تعذر إنشاء النسخة الاحتياطية (${res.statusCode})');
-    return (res.data as List).cast<int>();
-  }
+  Future<List<int>> downloadBackup() => _c.requestBytes('POST', '/backup/create');
 
   // ================= Reports (PDF / Excel) =================
 
-  Future<List<int>> downloadReport(String reportKey, String format) async {
-    final res = await _c.dio.request('/reports/$reportKey/$format',
-        options: Options(responseType: ResponseType.bytes));
-    if (res.statusCode != 200) throw ApiException('تعذر تنزيل التقرير (${res.statusCode})');
-    return (res.data as List).cast<int>();
-  }
+  Future<List<int>> downloadReport(String reportKey, String format) =>
+      _c.requestBytes('GET', '/reports/$reportKey/$format');
 
   // ================= Accounts & Journal =================
 
@@ -389,9 +379,28 @@ class ApiService {
   Future<List<int>> financialReportBytes(String key, Map<String, dynamic> params) async {
     final q = <String, dynamic>{};
     params.forEach((k, v) => q[k] = v);
-    final res = await _c.dio.request('/financial-reports/$key',
-        queryParameters: q, options: Options(responseType: ResponseType.bytes));
-    if (res.statusCode != 200) throw ApiException('تعذر تنزيل التقرير (${res.statusCode})');
-    return (res.data as List).cast<int>();
+    return _c.requestBytes('GET', '/financial-reports/$key', query: q);
   }
+
+  // ================= Currencies =================
+
+  Future<List<Currency>> currencies({bool all = false}) async =>
+      (await _list(_c.request('GET', '/currencies', query: all ? {'all': '1'} : null)))
+          .map(Currency.fromJson)
+          .toList();
+
+  /// إنشاء عملة، أو تعديل عملة موجودة إذا مُرّر [existingCode].
+  Future<void> saveCurrency(Map<String, dynamic> data, {String? existingCode}) =>
+      existingCode == null
+          ? _c.request('POST', '/currencies', data: data)
+          : _c.request('PUT', '/currencies/$existingCode', data: data);
+
+  Future<void> setCurrencyConfig({String? local, String? defaultCode}) =>
+      _c.request('PUT', '/currencies-config', data: {
+        if (local != null) 'local': local,
+        if (defaultCode != null) 'default': defaultCode,
+      });
+
+  Future<List<Map<String, dynamic>>> currencyHistory(String code) =>
+      _list(_c.request('GET', '/currencies/$code/history'));
 }

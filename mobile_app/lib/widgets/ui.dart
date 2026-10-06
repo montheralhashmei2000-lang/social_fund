@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../core/currency.dart';
 import '../core/theme.dart';
 
-String money(num v) => '${NumberFormat('#,##0').format(v)} ﷼';
+/// يُعرض بعملة العرض المختارة (CurrencyFormat)، وقبل تحميل العملات: ريال بلا كسور.
+String money(num v) => CurrencyFormat.format(v);
 
 /// مبالغ عشرية (محاسبة) بفاصلة عشرية ذكية.
 String money2(num v) => v.truncateToDouble() == v ? money(v) : '${NumberFormat('#,##0.00').format(v)} ﷼';

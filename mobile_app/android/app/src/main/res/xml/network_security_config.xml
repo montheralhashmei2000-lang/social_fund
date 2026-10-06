@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  أندرويد لا يدعم نطاقات IP (CIDR) هنا، لذا لا يمكن حصر http بشبكات 192.168.x.x من هذا الملف.
+  الحصر يتم داخل التطبيق: ServerProfiles.normalize يرفض http لأي عنوان غير محلي
+  (localhost / 10.x / 172.16-31.x / 192.168.x). الخوادم على الإنترنت تُقبل https فقط.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

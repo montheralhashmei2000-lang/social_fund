@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/api_client.dart';
+import '../core/config.dart';
+import '../core/server_profiles.dart';
+import 'servers_screen.dart';
 import '../core/theme.dart';
 import '../state/controllers.dart';
 import '../widgets/ui.dart';
@@ -79,6 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
             _un.text.trim(),
             _pw.text,
           );
+      if (res['logged_in'] == true) return; // خادم بلا OTP: البوابة تنقلنا للرئيسية
       setState(() {
         _otpToken = res['otp_token'] as String?;
         _pendingName = res['user_name'] as String?;
@@ -238,8 +242,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
                   ),
                 ),
-              const SizedBox(height: 16),
-              Text('اتصال آمن HTTPS · مصادقة ثنائية OTP',
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: () async {
+                  await Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const ServersScreen()));
+                  if (mounted) setState(() {});
+                },
+                icon: Icon(Icons.dns, size: 16, color: Colors.white.withOpacity(0.7)),
+                label: Text('الخادم: ${ServerProfiles.active?.name ?? AppConfig.baseUrl}',
+                    style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
+              ),
+              Text(AppConfig.isSecureBaseUrl ? 'اتصال مشفر HTTPS' : 'شبكة محلية (غير مشفر)',
                   style: TextStyle(color: Colors.white.withOpacity(0.35), fontSize: 11)),
             ],
           ),

@@ -10,6 +10,7 @@ import 'screens/home_shell.dart';
 import 'screens/login_screen.dart';
 import 'services/push_service.dart';
 import 'state/controllers.dart';
+import 'state/currency_controller.dart';
 import 'state/expansion_controller.dart';
 
 Future<void> main() async {
@@ -38,6 +39,7 @@ class AppProviders extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthController()..boot()),
         ChangeNotifierProvider(create: (_) => DataController()),
         ChangeNotifierProvider(create: (_) => ExpansionController()),
+        ChangeNotifierProvider(create: (_) => CurrencyController()),
       ],
       child: const SocialFundApp(),
     );
