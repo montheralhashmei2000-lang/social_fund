@@ -19,3 +19,4 @@ deploy/server-info.txt
 deploy/secrets/
 deploy/SocialFund.apk
 SocialFund-Dart-Server/.dart_tool/
+local-data/
