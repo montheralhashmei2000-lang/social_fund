@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/api_client.dart';
+import '../core/num_parse.dart';
 import '../core/theme.dart';
 import '../state/expansion_controller.dart';
 import '../widgets/ui.dart';
+import '../widgets/ui_kit.dart';
 
 class CampaignsScreen extends StatefulWidget {
   const CampaignsScreen({super.key});
@@ -22,6 +24,9 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
     });
   }
 
+  String filter = 'الكل';
+  String query = '';
+
   @override
   Widget build(BuildContext context) {
     final c = App.of(context);
@@ -29,31 +34,80 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
 
     if (ctl.loading && ctl.campaigns.isEmpty) return const LoadingView();
 
-    return Stack(
-      children: [
-        if (ctl.campaigns.isEmpty)
-          const Center(child: EmptyState(icon: Icons.campaign, text: 'لا حملات بعد — أنشئ حملة جمع تبرعات'))
-        else
-          ListView(
-            padding: const EdgeInsets.all(16),
-            children: ctl.campaigns.map((camp) => _campaignCard(context, camp)).toList(),
-          ),
-        Positioned(
-          bottom: 18,
-          left: 18,
-          child: FloatingActionButton(
-            backgroundColor: c.primaryMid,
-            child: const Icon(Icons.add, color: Colors.white),
-            onPressed: () => _addCampaignSheet(),
-          ),
-        ),
-      ],
+    final all = ctl.campaigns;
+    final active = all.where((x) => x.status != 'closed').toList();
+    final q = query.trim();
+    final shown = [
+      for (final x in all)
+        if ((filter == 'الكل' || (filter == 'نشطة') == (x.status != 'closed')) &&
+            (q.isEmpty || '${x.name} ${x.description ?? ''}'.contains(q)))
+          x,
+    ];
+    double sum(Iterable list, num Function(dynamic) f) => list.fold(0.0, (s, x) => s + f(x));
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _addCampaignSheet,
+        icon: const Icon(Icons.add),
+        label: const Text('حملة جديدة'),
+      ),
+      body: all.isEmpty
+          ? EmptyState(
+              icon: Icons.campaign,
+              text: 'لا حملات بعد',
+              subtitle: 'أنشئ حملة جمع تبرعات بهدف مالي لتتابع تقدمها ومصروفاتها',
+              actionText: 'حملة جديدة',
+              onAction: _addCampaignSheet,
+            )
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: StatTile(
+                        icon: Icons.campaign,
+                        label: 'حملات نشطة',
+                        value: '${active.length}',
+                        sub: 'من ${all.length}',
+                        color: c.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: StatTile(
+                        icon: Icons.savings,
+                        label: 'المجموع في النشطة',
+                        value: money2(sum(active, (x) => x.raised as num)),
+                        sub: 'من هدف ${money2(sum(active, (x) => x.goalAmount as num))}',
+                        color: c.goldDark,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SearchField(hint: 'ابحث باسم الحملة…', onChanged: (v) => setState(() => query = v)),
+                const SizedBox(height: 10),
+                FilterChipsBar(
+                  options: const ['الكل', 'نشطة', 'مغلقة'],
+                  selected: filter,
+                  counts: {'الكل': all.length, 'نشطة': active.length, 'مغلقة': all.length - active.length},
+                  onSelected: (v) => setState(() => filter = v),
+                ),
+                const SizedBox(height: 12),
+                if (shown.isEmpty)
+                  const EmptyState(icon: Icons.search_off, text: 'لا نتائج مطابقة')
+                else
+                  ...shown.map((camp) => _campaignCard(context, camp)),
+              ],
+            ),
     );
   }
 
   Widget _campaignCard(BuildContext context, camp) {
     final c = App.of(context);
-    final pct = (camp.percent as double).clamp(0.0, 100.0);
+    final pct = (((camp.percent as num?) ?? 0).toDouble()).clamp(0.0, 100.0);
     final closed = camp.status == 'closed';
     return UiCard(
       child: Column(
@@ -169,7 +223,7 @@ class _CampaignsScreenState extends State<CampaignsScreen> {
             UiButton(
               text: 'إنشاء الحملة',
               onPressed: () async {
-                final g = double.tryParse(goal.text.trim()) ?? 0;
+                final g = parseDouble(goal.text.trim()) ?? 0;
                 if (name.text.trim().isEmpty || g <= 0) {
                   uiToast(ctx, 'أكمل الاسم والهدف', error: true);
                   return;

@@ -5,7 +5,9 @@ import '../core/api_client.dart';
 import '../core/models.dart';
 import '../core/rbac.dart';
 import '../state/controllers.dart';
+import '../widgets/money_input.dart';
 import '../widgets/ui.dart';
+import '../widgets/ui_kit.dart';
 
 const catsIn = ['اشتراكات', 'تبرعات', 'غرامات', 'أخرى'];
 const catsEx = ['مساعدات', 'إدارة', 'صيانة', 'أخرى'];
@@ -181,6 +183,7 @@ class _TreasuryScreenState extends State<TreasuryScreen> {
             children: [
               Text('${isIncome ? '+' : '-'}${money(t.amount)}',
                   style: TextStyle(fontWeight: FontWeight.w900, color: color, fontSize: 15)),
+              if (t.origin != null) OriginNote(t.origin!),
               Container(
                 margin: const EdgeInsets.only(top: 2),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -210,7 +213,7 @@ class _TreasuryFormState extends State<_TreasuryForm> {
   String type = 'إيراد';
   String cat = 'اشتراكات';
   final desc = TextEditingController();
-  final amount = TextEditingController();
+  final moneyCtl = MoneyInputController();
   DateTime date = DateTime.now();
   bool busy = false;
   String? err;
@@ -218,7 +221,7 @@ class _TreasuryFormState extends State<_TreasuryForm> {
   @override
   void dispose() {
     desc.dispose();
-    amount.dispose();
+    moneyCtl.dispose();
     super.dispose();
   }
 
@@ -248,7 +251,7 @@ class _TreasuryFormState extends State<_TreasuryForm> {
           onChanged: (v) => setState(() => cat = v ?? cat),
         ),
         UiField(label: 'الوصف *', controller: desc, hint: 'وصف المعاملة'),
-        UiField(label: 'المبلغ (﷼) *', controller: amount, keyboardType: TextInputType.number, icon: Icons.payments_outlined),
+        MoneyInput(controller: moneyCtl),
         Row(
           children: [
             Expanded(
@@ -276,7 +279,8 @@ class _TreasuryFormState extends State<_TreasuryForm> {
           onPressed: busy
               ? null
               : () async {
-                  final amt = int.tryParse(amount.text.trim()) ?? 0;
+                  final mv = moneyCtl.read(context);
+                  final amt = mv?.local ?? 0;
                   if (desc.text.trim().isEmpty || amt <= 0) {
                     setState(() => err = 'يرجى إدخال الوصف ومبلغ صحيح');
                     return;
@@ -291,6 +295,7 @@ class _TreasuryFormState extends State<_TreasuryForm> {
                           category: cat,
                           description: desc.text.trim(),
                           amount: amt,
+                          money: mv?.extras,
                           entryDate: date.toIso8601String().split('T').first,
                         );
                     if (context.mounted) {

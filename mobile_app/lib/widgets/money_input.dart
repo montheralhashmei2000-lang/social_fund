@@ -15,6 +15,10 @@ class MoneyValue {
   final bool foreign;
   const MoneyValue(this.local, this.currency, this.original, this.foreign);
 
+  /// حقول العملة الأجنبية فقط (بدون amount): تُدمج في جسم الطلب مع amount المحلي.
+  Map<String, dynamic>? get extras =>
+      foreign ? {'currency': currency.code, 'original_amount': original} : null;
+
   /// حقول تُضاف إلى جسم الطلب.
   Map<String, dynamic> toPayload() => {
         'amount': local,

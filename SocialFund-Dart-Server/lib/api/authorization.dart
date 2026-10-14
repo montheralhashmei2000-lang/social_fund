@@ -63,6 +63,10 @@ class Authorization {
     if (first == 'currencies' || first == 'currencies-config') {
       return method == 'GET' || _can(role, 'settings');
     }
+    // إعدادات النظام: قراءة لكل مستخدم (الشاشات تبني عليها)، تعديل لمن يملك settings
+    if (first == 'app-settings') {
+      return method == 'GET' || _can(role, 'settings');
+    }
     // بيانات الصندوق: قراءة للجميع (تظهر على السندات)، تعديل لمن يملك settings
     if (first == 'fund-settings') {
       return method == 'GET' || _can(role, 'settings');

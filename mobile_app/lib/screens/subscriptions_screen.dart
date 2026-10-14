@@ -5,9 +5,11 @@ import '../core/api_client.dart';
 import '../core/models.dart';
 import '../core/theme.dart';
 import '../state/controllers.dart';
+import '../state/settings_controller.dart';
+import '../widgets/money_input.dart';
 import '../widgets/ui.dart';
+import '../widgets/ui_kit.dart';
 
-const payMethods = ['نقداً', 'تحويل بنكي', 'شيك', 'محفظة إلكترونية', 'وكالة'];
 
 class SubscriptionsScreen extends StatefulWidget {
   const SubscriptionsScreen({super.key});
@@ -25,8 +27,9 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
       context,
       title: 'تسجيل اشتراك',
       accent: AppColors.light.goldDark,
-      child: _AddSubForm(members: data.members, onSubmit: (memberId, amount, date, method) async {
-        await data.createSubscription(memberId: memberId, amount: amount, paymentDate: date, method: method);
+      child: _AddSubForm(members: data.members, onSubmit: (memberId, amount, date, method, money) async {
+        await data.createSubscription(
+            memberId: memberId, amount: amount, paymentDate: date, method: method, money: money);
       }),
     );
   }
@@ -140,8 +143,14 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                         ],
                       ),
                     ),
-                    Text('+${money(s.amount)}',
-                        style: TextStyle(fontWeight: FontWeight.w900, color: c.ok, fontSize: 15)),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('+${money(s.amount)}',
+                            style: TextStyle(fontWeight: FontWeight.w900, color: c.ok, fontSize: 15)),
+                        if (s.origin != null) OriginNote(s.origin!),
+                      ],
+                    ),
                   ],
                 ),
               )),
@@ -152,7 +161,8 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
 
 class _AddSubForm extends StatefulWidget {
   final List<Member> members;
-  final Future<void> Function(String memberId, int amount, String date, String method) onSubmit;
+  final Future<void> Function(String memberId, int amount, String date, String method, Map<String, dynamic>? money)
+      onSubmit;
 
   const _AddSubForm({required this.members, required this.onSubmit});
 
@@ -161,12 +171,23 @@ class _AddSubForm extends StatefulWidget {
 }
 
 class _AddSubFormState extends State<_AddSubForm> {
+  List<String> get methods => context.read<SettingsController>().paymentMethods;
+  String get curMethod => methods.contains(method) ? method! : methods.first;
+
   String? memberId;
-  final amount = TextEditingController();
+  final moneyCtl = MoneyInputController();
   DateTime date = DateTime.now();
-  String method = 'نقداً';
+  String? method;
   bool busy = false;
   String? err;
+
+  @override
+  void initState() {
+    super.initState();
+    // قيمة الاشتراك الافتراضية من إعدادات النظام (إن حُدّدت)
+    final def = context.read<SettingsController>().defaultSubscription;
+    if (def > 0) moneyCtl.text.text = def.toInt().toString();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -180,17 +201,12 @@ class _AddSubFormState extends State<_AddSubForm> {
           items: widget.members.map((m) => DropdownMenuItem(value: m.id, child: Text(m.name))).toList(),
           onChanged: (v) => setState(() => memberId = v),
         ),
-        UiField(
-          label: 'المبلغ (﷼) *',
-          controller: amount,
-          keyboardType: TextInputType.number,
-          icon: Icons.payments_outlined,
-        ),
+        MoneyInput(controller: moneyCtl),
         UiDropdown<String>(
           label: 'طريقة الدفع',
-          value: method,
-          items: payMethods.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
-          onChanged: (v) => setState(() => method = v ?? 'نقداً'),
+          value: curMethod,
+          items: methods.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+          onChanged: (v) => setState(() => method = v ?? curMethod),
         ),
         Row(
           children: [
@@ -224,7 +240,8 @@ class _AddSubFormState extends State<_AddSubForm> {
           onPressed: busy
               ? null
               : () async {
-                  final amt = int.tryParse(amount.text.trim()) ?? 0;
+                  final mv = moneyCtl.read(context);
+                  final amt = mv?.local ?? 0;
                   if (amt <= 0) {
                     setState(() => err = 'أدخل مبلغاً صحيحاً أكبر من صفر');
                     return;
@@ -235,7 +252,7 @@ class _AddSubFormState extends State<_AddSubForm> {
                   });
                   try {
                     await widget.onSubmit(
-                        memberId ?? widget.members.first.id, amt, date.toIso8601String().split('T').first, method);
+                        memberId ?? widget.members.first.id, amt, date.toIso8601String().split('T').first, curMethod, mv?.extras);
                     if (context.mounted) {
                       Navigator.pop(context);
                       uiToast(context, 'تم تسجيل الاشتراك بنجاح', success: true);

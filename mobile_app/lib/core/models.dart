@@ -2,6 +2,8 @@
 /// المبالغ المالية بالريال اليمني الصحيح (قرار صريح: Integer بدون كسور).
 library;
 
+import 'currency.dart' show MoneyOrigin;
+
 class AppUser {
   final String id;
   final String username;
@@ -74,6 +76,8 @@ class Member {
 }
 
 class AidRequest {
+  /// أصل المبلغ إن أُدخل بعملة غير المحلية (للعرض والتدقيق فقط).
+  final MoneyOrigin? origin;
   final String id;
   final String memberId;
   final String memberName;
@@ -85,6 +89,7 @@ class AidRequest {
   final String? reviewerName;
 
   const AidRequest({
+    this.origin,
     required this.id,
     required this.memberId,
     required this.memberName,
@@ -97,6 +102,7 @@ class AidRequest {
   });
 
   factory AidRequest.fromJson(Map<String, dynamic> j) => AidRequest(
+        origin: MoneyOrigin.from(j),
         id: j['id'].toString(),
         memberId: (j['member_id'] ?? '').toString(),
         memberName: (j['member_name'] ?? '').toString(),
@@ -110,6 +116,8 @@ class AidRequest {
 }
 
 class Subscription {
+  /// أصل المبلغ إن أُدخل بعملة غير المحلية (للعرض والتدقيق فقط).
+  final MoneyOrigin? origin;
   final String id;
   final String memberId;
   final String memberName;
@@ -119,6 +127,7 @@ class Subscription {
   final String? referenceNo;
 
   const Subscription({
+    this.origin,
     required this.id,
     required this.memberId,
     required this.memberName,
@@ -129,6 +138,7 @@ class Subscription {
   });
 
   factory Subscription.fromJson(Map<String, dynamic> j) => Subscription(
+        origin: MoneyOrigin.from(j),
         id: j['id'].toString(),
         memberId: (j['member_id'] ?? '').toString(),
         memberName: (j['member_name'] ?? '').toString(),
@@ -140,6 +150,8 @@ class Subscription {
 }
 
 class TreasuryEntry {
+  /// أصل المبلغ إن أُدخل بعملة غير المحلية (للعرض والتدقيق فقط).
+  final MoneyOrigin? origin;
   final String id;
   final String type; // إيراد / مصروف
   final String category;
@@ -149,6 +161,7 @@ class TreasuryEntry {
   final String? referenceNo;
 
   const TreasuryEntry({
+    this.origin,
     required this.id,
     required this.type,
     required this.category,
@@ -161,6 +174,7 @@ class TreasuryEntry {
   bool get isIncome => type == 'إيراد';
 
   factory TreasuryEntry.fromJson(Map<String, dynamic> j) => TreasuryEntry(
+        origin: MoneyOrigin.from(j),
         id: j['id'].toString(),
         type: (j['type'] ?? '').toString(),
         category: (j['category'] ?? '').toString(),
@@ -172,6 +186,8 @@ class TreasuryEntry {
 }
 
 class Voucher {
+  /// أصل المبلغ إن أُدخل بعملة غير المحلية (للعرض والتدقيق فقط).
+  final MoneyOrigin? origin;
   final String id;
   final String voucherNo;
   final String kind; // قبض / صرف
@@ -190,6 +206,7 @@ class Voucher {
   final String? journalEntryId;
 
   const Voucher({
+    this.origin,
     required this.id,
     required this.voucherNo,
     required this.kind,
@@ -216,6 +233,7 @@ class Voucher {
   String get party => memberName.isNotEmpty ? memberName : (partyName ?? '');
 
   factory Voucher.fromJson(Map<String, dynamic> j) => Voucher(
+        origin: MoneyOrigin.from(j),
         id: j['id'].toString(),
         voucherNo: (j['voucher_no'] ?? '').toString(),
         kind: (j['kind'] ?? '').toString(),

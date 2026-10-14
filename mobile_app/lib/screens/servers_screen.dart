@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../core/server_profiles.dart';
 import '../state/controllers.dart';
 import '../widgets/ui.dart';
+import '../widgets/ui_kit.dart';
 
 /// إدارة الخوادم: إضافة خادم محلي/سحابي والتبديل بينها بلا إعادة بناء التطبيق.
 /// التبديل يُنهي الجلسة الحالية لأن رموز الدخول خاصة بكل خادم.
@@ -18,18 +19,14 @@ class _ServersScreenState extends State<ServersScreen> {
   Future<void> _select(ServerProfile s) async {
     if (s.id == ServerProfiles.activeId) return;
     final auth = context.read<AuthController>();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('التبديل إلى خادم آخر'),
-        content: Text('سيتم تسجيل خروجك من الخادم الحالي والاتصال بـ «${s.name}».'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('تبديل')),
-        ],
-      ),
+    final ok = await confirmDialog(
+      context,
+      title: 'التبديل إلى خادم آخر',
+      message: 'سيتم تسجيل خروجك من الخادم الحالي والاتصال بـ «${s.name}».',
+      confirmText: 'تبديل',
+      icon: Icons.swap_horiz,
     );
-    if (ok != true) return;
+    if (!ok) return;
     await ServerProfiles.select(s.id);
     await auth.onServerChanged();
     if (mounted) setState(() {});

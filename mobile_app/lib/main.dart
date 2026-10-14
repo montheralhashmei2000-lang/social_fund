@@ -11,6 +11,7 @@ import 'screens/login_screen.dart';
 import 'services/push_service.dart';
 import 'state/controllers.dart';
 import 'state/currency_controller.dart';
+import 'state/settings_controller.dart';
 import 'state/expansion_controller.dart';
 
 Future<void> main() async {
@@ -40,6 +41,7 @@ class AppProviders extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DataController()),
         ChangeNotifierProvider(create: (_) => ExpansionController()),
         ChangeNotifierProvider(create: (_) => CurrencyController()),
+        ChangeNotifierProvider(create: (_) => SettingsController()),
       ],
       child: const SocialFundApp(),
     );
@@ -72,7 +74,15 @@ class _SocialFundAppState extends State<SocialFundApp> {
       navigatorKey: navigatorKey,
       theme: AppTheme.theme(AppColors.light),
       darkTheme: AppTheme.theme(AppColors.dark),
-      themeMode: theme.dark ? ThemeMode.dark : ThemeMode.light,
+      themeMode: theme.mode,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          // حجم خط المستخدم يُضرب في إعداد النظام ضمن حدود تحمي التخطيط
+          textScaler: TextScaler.linear(
+              (MediaQuery.textScalerOf(context).scale(1.0) * theme.textScale).clamp(0.8, 1.6)),
+        ),
+        child: child ?? const SizedBox.shrink(),
+      ),
       locale: const Locale('ar'),
       supportedLocales: const [Locale('ar')],
       localizationsDelegates: const [

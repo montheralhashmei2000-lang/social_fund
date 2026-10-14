@@ -7,6 +7,7 @@ import 'package:shelf_router/shelf_router.dart';
 import 'package:uuid/uuid.dart';
 import '../../db/database.dart';
 import '../../db/repositories/journal_repository.dart';
+import '../../services/app_settings_service.dart';
 import '../../services/report_service.dart';
 import '../../services/voucher_pdf_service.dart';
 import '../middleware.dart';
@@ -42,6 +43,12 @@ class AppRoutes {
         return jsonErr(400, 'لا يمكن الانتقال من «${aid.status}» إلى «$status»');
       }
       final uid = req.context['userId'] as String?;
+      // فصل المهام (إعداد aids.require_second_approver): من سجّل الطلب لا يعتمده بنفسه.
+      if (status == 'معتمدة' &&
+          await AppSettingsService(db).get<bool>('aids.require_second_approver') &&
+          uid != null && aid.createdBy == uid) {
+        return jsonErr(403, 'سياسة الصندوق: لا يعتمد الطلب من سجّله، يراجعه مستخدم آخر');
+      }
       final reviewer = uid == null ? null : await _userName(uid);
       await (db.update(db.aidRequests)..where((t) => t.id.equals(id))).write(
         AidRequestsCompanion(

@@ -70,8 +70,7 @@ class _DonorsScreenState extends State<DonorsScreen> {
           bottom: 18,
           left: 18,
           child: FloatingActionButton(
-            backgroundColor: c.primaryMid,
-            child: const Icon(Icons.person_add_alt, color: Colors.white),
+            child: const Icon(Icons.person_add_alt),
             onPressed: () => _addDonorSheet(),
           ),
         ),

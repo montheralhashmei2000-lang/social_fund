@@ -12,11 +12,16 @@ import '../core/secure_store.dart';
 import '../core/server_profiles.dart';
 import 'currencies_screen.dart';
 import 'servers_screen.dart';
+import 'settings_section_screen.dart';
+import 'settings_sections.dart';
+import '../state/currency_controller.dart';
+import '../state/settings_controller.dart';
 import '../core/theme.dart';
 import '../services/api_service.dart';
 import '../services/push_service.dart';
 import '../state/controllers.dart';
 import '../widgets/ui.dart';
+import '../widgets/ui_kit.dart';
 import 'home_shell.dart' show Tabs;
 
 /// الإعدادات — كلاسيكية حديثة: ملف المستخدم، الأمان، التفضيلات، روابط سريعة
@@ -133,26 +138,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _confirmLogout(bool allDevices) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(allDevices ? 'إنهاء الجلسات على كل الأجهزة؟' : 'تسجيل الخروج؟'),
-        content: Text(allDevices
-            ? 'سيتم إنهاء جميع الجلسات النشطة لحسابك على كل الأجهزة.'
-            : 'ستحتاج تسجيل الدخول من جديد لاستئناف العمل.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(allDevices ? 'إنهاء الكل' : 'خروج',
-                  style: const TextStyle(color: Color(0xFFB71C1C)))),
-        ],
-      ),
+    final ok = await confirmDialog(
+      context,
+      title: allDevices ? 'إنهاء الجلسات على كل الأجهزة؟' : 'تسجيل الخروج؟',
+      message: allDevices
+          ? 'سيتم إنهاء جميع الجلسات النشطة لحسابك على كل الأجهزة.'
+          : 'ستحتاج تسجيل الدخول من جديد لاستئناف العمل.',
+      confirmText: allDevices ? 'إنهاء الكل' : 'خروج',
+      danger: true,
+      icon: Icons.logout,
     );
-    if (ok != true || !mounted) return;
+    if (!ok || !mounted) return;
     final data = context.read<DataController>();
+    final settings = context.read<SettingsController>();
+    final currencies = context.read<CurrencyController>();
     await context.read<AuthController>().logout();
     data.clear();
+    settings.clear();
+    currencies.clear();
   }
 
   @override
@@ -237,8 +240,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: Icons.security,
             color: c.info,
             label: 'المصادقة الثنائية (OTP)',
-            sub: 'مفعّلة دائماً عبر SMS - لا يمكن تعطيلها',
-            trailing: const Icon(Icons.check_circle, color: Color(0xFF2E7D32), size: 20),
+            sub: 'رمز تحقق عبر SMS عند الدخول — يحدد الخادم تفعيلها',
+            trailing: Icon(Icons.info_outline, color: c.mu, size: 20),
           ),
           _row(
             context,
@@ -251,33 +254,86 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ]),
 
         // ===== المظهر والتفضيلات =====
-        _sectionTitle(context, 'المظهر والتفضيلات'),
+        _sectionTitle(context, 'المظهر والخط'),
         _section(context, [
-          _row(
-            context,
-            icon: theme.dark ? Icons.light_mode : Icons.dark_mode,
-            color: const Color(0xFF9C27B0),
-            label: 'الوضع الداكن',
-            sub: theme.dark ? 'مفعّل - يطبق على كل الشاشات فوراً' : 'معطّل',
-            trailing: Switch(
-              value: theme.dark,
-              activeThumbColor: c.primary,
-              onChanged: (v) => theme.setDark(v),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('نمط المظهر', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: c.tx)),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<ThemeMode>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.brightness_auto, size: 18), label: Text('تلقائي')),
+                      ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode, size: 18), label: Text('فاتح')),
+                      ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode, size: 18), label: Text('داكن')),
+                    ],
+                    selected: {theme.mode},
+                    onSelectionChanged: (v) => theme.setMode(v.first),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('حجم الخط', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: c.tx)),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<double>(
+                    showSelectedIcon: false,
+                    segments: [
+                      for (final (label, v) in ThemeController.scales) ButtonSegment(value: v, label: Text(label)),
+                    ],
+                    selected: {theme.textScale},
+                    onSelectionChanged: (v) => theme.setTextScale(v.first),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: c.surf,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: c.border),
+                  ),
+                  child: Text(
+                    'معاينة: صرف مساعدة طارئة بمبلغ 250,000 للأسرة رقم 1042',
+                    style: TextStyle(fontSize: 13.5, color: c.sub, height: 1.5),
+                  ),
+                ),
+              ],
             ),
           ),
         ]),
 
-        // ===== روابط سريعة (ربط بباقي الشاشات) =====
-        _sectionTitle(context, 'روابط سريعة'),
+        // ===== إعدادات النظام: كل قسم يربط الإعدادات بالشاشات المتأثرة بها =====
+        _sectionTitle(context, 'إعدادات النظام'),
         _section(context, [
-          if (Rbac.can(user.role, 'users')) ...[
-            _link(context,
-                icon: Icons.manage_accounts, color: c.primary, label: 'إدارة المستخدمين والأدوار',
-                sub: 'إنشاء الحسابات وصلاحيات كل دور', tab: Tabs.users),
-            _link(context,
-                icon: Icons.history_edu, color: c.mu, label: 'سجل العمليات (التدقيق)',
-                sub: 'كل ما جرى على النظام موثق بالتاريخ والمستخدم', tab: Tabs.audit),
-          ],
+          for (final sec in settingsSections)
+            _row(
+              context,
+              icon: sec.icon,
+              color: sec.color,
+              label: sec.title,
+              sub: context.watch<SettingsController>().loaded ? sec.summary(context.watch<SettingsController>()) : sec.subtitle,
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => SettingsSectionScreen(sectionId: sec.id))),
+            ),
+        ]),
+
+        // ===== الإدارة والصندوق =====
+        _sectionTitle(context, 'الصندوق والإدارة'),
+        _section(context, [
           if (Rbac.can(user.role, 'settings'))
             _link(context,
                 icon: Icons.shield, color: c.ok, label: 'بيانات الصندوق والهوية',
@@ -293,18 +349,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () => Navigator.of(context)
                 .push(MaterialPageRoute(builder: (_) => const CurrenciesScreen())),
           ),
-          if (Rbac.can(user.role, 'reports'))
+          if (Rbac.can(user.role, 'users')) ...[
             _link(context,
-                icon: Icons.stacked_line_chart, color: c.info, label: 'القوائم المالية',
-                sub: 'ميزان المراجعة والدخل والتدفقات وتقارير الحملات', tab: Tabs.finReports),
-          if (Rbac.can(user.role, 'vouchers'))
+                icon: Icons.manage_accounts, color: c.primary, label: 'إدارة المستخدمين والأدوار',
+                sub: 'إنشاء الحسابات وصلاحيات كل دور', tab: Tabs.users),
             _link(context,
-                icon: Icons.approval, color: c.goldDark, label: 'سندات القبض والصرف',
-                sub: 'كل سند بقيد محاسبي متوازن وPDF رسمي', tab: Tabs.vouchers),
-          if (Rbac.can(user.role, 'accounting'))
-            _link(context,
-                icon: Icons.menu_book, color: c.primaryMid, label: 'دفتر القيود المزدوجة',
-                sub: 'كل الحركات المالية الموثقة بالمدين والدائن', tab: Tabs.journal),
+                icon: Icons.history_edu, color: c.mu, label: 'سجل العمليات (التدقيق)',
+                sub: 'كل ما جرى على النظام موثق بالتاريخ والمستخدم', tab: Tabs.audit),
+          ],
         ]),
 
         // ===== البيانات =====

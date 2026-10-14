@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../core/currency.dart';
 import '../core/theme.dart';
+import 'ui_kit.dart' show SkeletonList;
 
 /// يُعرض بعملة العرض المختارة (CurrencyFormat)، وقبل تحميل العملات: ريال بلا كسور.
 String money(num v) => CurrencyFormat.format(v);
@@ -19,11 +20,13 @@ Color statusColor(String status, AppColors c) {
       return c.ok;
     case 'معلق':
     case 'قيد المراجعة':
+    case 'مسودة':
       return c.warn;
     case 'مصروفة':
       return c.info;
     case 'مرفوضة':
     case 'صرف':
+    case 'ملغي':
       return c.err;
     default:
       return c.primary;
@@ -144,7 +147,8 @@ class UiButton extends StatelessWidget {
           side: variant == 'outline' ? BorderSide(color: c.primary, width: 1.4) : null,
           padding: EdgeInsets.symmetric(vertical: small ? 10 : 14),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: TextStyle(fontSize: small ? 13 : 15, fontWeight: FontWeight.w700),
+          textStyle: TextStyle(
+              fontFamily: AppTheme.bodyFont, fontSize: small ? 13 : 15, fontWeight: FontWeight.w700),
         ),
         child: child ?? Text(text ?? ''),
       ),
@@ -273,15 +277,10 @@ Future<T?> uiSheet<T>(BuildContext context, {required String title, required Wid
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.transparent,
     builder: (ctx) => Padding(
       padding: MediaQuery.of(ctx).viewInsets,
       child: Container(
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.92),
-        decoration: BoxDecoration(
-          color: c.card,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.88),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -319,36 +318,61 @@ Future<T?> uiSheet<T>(BuildContext context, {required String title, required Wid
   );
 }
 
-/// تمرير رسالة تنبيه موحدة.
+/// تنبيه موحد: أيقونة + لون حسب النوع (نجاح/خطأ/معلومة).
 void uiToast(BuildContext context, String message, {bool error = false, bool success = false}) {
   final c = App.of(context);
+  final icon = error ? Icons.error_outline : (success ? Icons.check_circle_outline : Icons.info_outline);
   ScaffoldMessenger.of(context).hideCurrentSnackBar();
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
-      content: Text(message,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+      content: Row(
+        children: [
+          Icon(icon, color: Colors.white, size: 20),
+          const SizedBox(width: 10),
+          Expanded(child: Text(message, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600))),
+        ],
+      ),
       backgroundColor: error ? c.err : (success ? c.ok : c.primaryDark),
-      duration: const Duration(seconds: 3),
+      duration: Duration(seconds: error ? 4 : 3),
     ),
   );
 }
 
+/// حالة فارغة: أيقونة + نص + سطر شرح وزر إجراء اختياريان.
 class EmptyState extends StatelessWidget {
   final IconData icon;
   final String text;
-  const EmptyState({super.key, this.icon = Icons.inbox_outlined, required this.text});
+  final String? subtitle;
+  final String? actionText;
+  final VoidCallback? onAction;
+  const EmptyState({super.key, this.icon = Icons.inbox_outlined, required this.text, this.subtitle, this.actionText, this.onAction});
 
   @override
   Widget build(BuildContext context) {
     final c = App.of(context);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 40),
+        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 42, color: c.border),
-            const SizedBox(height: 10),
-            Text(text, style: TextStyle(color: c.mu, fontSize: 13)),
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(color: c.primary.withValues(alpha: 0.08), shape: BoxShape.circle),
+              child: Icon(icon, size: 34, color: c.mu),
+            ),
+            const SizedBox(height: 14),
+            Text(text, textAlign: TextAlign.center, style: TextStyle(color: c.sub, fontSize: 14, fontWeight: FontWeight.w700)),
+            if (subtitle != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(subtitle!, textAlign: TextAlign.center, style: TextStyle(color: c.mu, fontSize: 12.5)),
+              ),
+            if (actionText != null && onAction != null) ...[
+              const SizedBox(height: 16),
+              FilledButton.icon(onPressed: onAction, icon: const Icon(Icons.add, size: 18), label: Text(actionText!)),
+            ],
           ],
         ),
       ),
@@ -361,13 +385,7 @@ class LoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = App.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 40),
-        child: CircularProgressIndicator(color: c.primaryMid),
-      ),
-    );
+    return const Padding(padding: EdgeInsets.all(16), child: SkeletonList(count: 5));
   }
 }
 
@@ -379,7 +397,8 @@ class App extends InheritedWidget {
 
   static AppColors of(BuildContext context) {
     final app = context.dependOnInheritedWidgetOfExactType<App>();
-    return app?.colors ?? (MediaQuery.platformBrightnessOf(context) == Brightness.dark ? AppColors.dark : AppColors.light);
+    // السمة الفعلية (تلقائي/فاتح/داكن) لا سطوع النظام: وإلا يخالف الوضع اليدوي سطوع الجهاز.
+    return app?.colors ?? (Theme.of(context).brightness == Brightness.dark ? AppColors.dark : AppColors.light);
   }
 
   @override

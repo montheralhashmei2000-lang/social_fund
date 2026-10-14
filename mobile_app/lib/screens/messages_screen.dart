@@ -100,8 +100,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           left: 18,
           child: FloatingActionButton(
             onPressed: _compose,
-            backgroundColor: c.primaryMid,
-            child: const Icon(Icons.edit, color: Colors.white),
+            child: const Icon(Icons.edit),
           ),
         ),
       ],

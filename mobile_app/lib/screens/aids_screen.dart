@@ -6,12 +6,10 @@ import '../core/models.dart';
 import '../core/rbac.dart';
 import '../core/theme.dart';
 import '../state/controllers.dart';
+import '../widgets/money_input.dart';
+import '../state/settings_controller.dart';
 import '../widgets/ui.dart';
-
-const aidTypes = [
-  'مساعدة زواج', 'مساعدة وفاة', 'مساعدة مرضية',
-  'مساعدة تعليمية', 'مساعدة ولادة', 'مساعدة طارئة',
-];
+import '../widgets/ui_kit.dart';
 
 class AidsScreen extends StatefulWidget {
   const AidsScreen({super.key});
@@ -22,6 +20,7 @@ class AidsScreen extends StatefulWidget {
 
 class _AidsScreenState extends State<AidsScreen> {
   String filter = 'الكل';
+  String query = '';
 
   @override
   Widget build(BuildContext context) {
@@ -30,11 +29,22 @@ class _AidsScreenState extends State<AidsScreen> {
     final role = context.read<AuthController>().user?.role;
     final canReview = Rbac.can(role, 'aids');
 
-    final shown = filter == 'الكل' ? data.aids : data.aids.where((a) => a.status == filter).toList();
-    shown.sort((a, b) => b.requestDate.compareTo(a.requestDate));
+    final q = query.trim();
+    final shown = [
+      for (final a in data.aids)
+        if ((filter == 'الكل' || a.status == filter) &&
+            (q.isEmpty || '${a.memberName} ${a.aidType} ${a.note ?? ''}'.contains(q)))
+          a,
+    ]..sort((a, b) => b.requestDate.compareTo(a.requestDate));
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      floatingActionButton: canReview && data.members.isNotEmpty
+          ? FloatingActionButton.extended(
+              onPressed: _add, icon: const Icon(Icons.add), label: const Text('طلب مساعدة'))
+          : null,
+      body: ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
       children: [
         Row(
           children: [
@@ -69,37 +79,31 @@ class _AidsScreenState extends State<AidsScreen> {
           ],
         ),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 6,
-          children: [
-            for (final s in ['الكل', 'قيد المراجعة', 'معتمدة', 'مصروفة', 'مرفوضة'])
-              ChoiceChip(
-                label: Text(s, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                selected: filter == s,
-                selectedColor: c.primary,
-                labelStyle: TextStyle(color: filter == s ? Colors.white : c.sub),
-                onSelected: (_) => setState(() => filter = s),
-              ),
-            if (canReview && data.members.isNotEmpty)
-              ActionChip(
-                backgroundColor: c.primaryMid,
-                label: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.add, size: 16, color: Colors.white),
-                    Text('طلب', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                  ],
-                ),
-                onPressed: _add,
-              ),
-          ],
+        SearchField(hint: 'ابحث باسم العضو أو نوع المساعدة…', onChanged: (v) => setState(() => query = v)),
+        const SizedBox(height: 10),
+        FilterChipsBar(
+          options: const ['الكل', 'قيد المراجعة', 'معتمدة', 'مصروفة', 'مرفوضة'],
+          selected: filter,
+          counts: {
+            'الكل': data.aids.length,
+            for (final st in ['قيد المراجعة', 'معتمدة', 'مصروفة', 'مرفوضة'])
+              st: data.aids.where((a) => a.status == st).length,
+          },
+          onSelected: (s) => setState(() => filter = s),
         ),
         const SizedBox(height: 8),
         if (shown.isEmpty)
-          const EmptyState(icon: Icons.volunteer_activism, text: 'لا توجد طلبات مساعدة')
+          EmptyState(
+            icon: Icons.volunteer_activism,
+            text: data.aids.isEmpty ? 'لا توجد طلبات مساعدة بعد' : 'لا نتائج مطابقة',
+            subtitle: data.aids.isEmpty ? 'سجّل أول طلب ليظهر هنا مع حالته ومراحل اعتماده' : null,
+            actionText: data.aids.isEmpty && canReview && data.members.isNotEmpty ? 'طلب مساعدة' : null,
+            onAction: _add,
+          )
         else
           ...shown.map((a) => _aidCard(context, a, canReview)),
       ],
+      ),
     );
   }
 
@@ -132,8 +136,14 @@ class _AidsScreenState extends State<AidsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(money(a.amount),
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: c.primary)),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(money(a.amount),
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: c.primary)),
+                  if (a.origin != null) OriginNote(a.origin!),
+                ],
+              ),
               if (canReview)
                 Row(
                   children: [
@@ -255,6 +265,7 @@ class _AddAidForm extends StatefulWidget {
     required int amount,
     required String requestDate,
     String? note,
+    Map<String, dynamic>? money,
   }) onSubmit;
 
   const _AddAidForm({required this.members, required this.onSubmit});
@@ -265,8 +276,8 @@ class _AddAidForm extends StatefulWidget {
 
 class _AddAidFormState extends State<_AddAidForm> {
   String? memberId;
-  String type = 'مساعدة زواج';
-  final amount = TextEditingController();
+  String? type;
+  final moneyCtl = MoneyInputController();
   final note = TextEditingController();
   DateTime date = DateTime.now();
   bool busy = false;
@@ -275,6 +286,9 @@ class _AddAidFormState extends State<_AddAidForm> {
   @override
   Widget build(BuildContext context) {
     final c = App.of(context);
+    // أنواع المساعدات من إعدادات النظام (قابلة للتعديل من ⚙ في رأس الشاشة)
+    final types = context.watch<SettingsController>().aidTypes;
+    final curType = types.contains(type) ? type! : types.first;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -286,16 +300,11 @@ class _AddAidFormState extends State<_AddAidForm> {
         ),
         UiDropdown<String>(
           label: 'نوع المساعدة',
-          value: type,
-          items: aidTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-          onChanged: (v) => setState(() => type = v ?? type),
+          value: curType,
+          items: types.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+          onChanged: (v) => setState(() => type = v ?? curType),
         ),
-        UiField(
-          label: 'المبلغ (﷼) *',
-          controller: amount,
-          keyboardType: TextInputType.number,
-          icon: Icons.payments_outlined,
-        ),
+        MoneyInput(controller: moneyCtl),
         Row(
           children: [
             Expanded(
@@ -324,7 +333,8 @@ class _AddAidFormState extends State<_AddAidForm> {
           onPressed: busy
               ? null
               : () async {
-                  final amt = int.tryParse(amount.text.trim()) ?? 0;
+                  final mv = moneyCtl.read(context);
+                  final amt = mv?.local ?? 0;
                   if (amt <= 0) {
                     setState(() => err = 'أدخل مبلغاً صحيحاً');
                     return;
@@ -338,8 +348,9 @@ class _AddAidFormState extends State<_AddAidForm> {
                     await widget.onSubmit(
                       memberId: member.id,
                       memberName: member.name,
-                      aidType: type,
+                      aidType: curType,
                       amount: amt,
+                      money: mv?.extras,
                       requestDate: date.toIso8601String().split('T').first,
                       note: note.text.trim().isEmpty ? null : note.text.trim(),
                     );

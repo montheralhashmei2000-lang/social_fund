@@ -7,6 +7,7 @@ import '../../db/repositories/vouchers_repository.dart';
 import '../../db/repositories/journal_repository.dart';
 import '../../core/currency_math.dart';
 import '../../db/repositories/currencies_repository.dart';
+import '../../services/app_settings_service.dart';
 import '../middleware.dart';
 
 class VouchersRoutes {
@@ -68,7 +69,11 @@ class VouchersRoutes {
       String treasuryId = (b['treasury_account_id'] ?? '').toString().trim();
       String counterId = (b['counter_account_id'] ?? '').toString().trim();
 
-      // إن لم تُرسل، ابحث عن الافتراضية
+      final settings = AppSettingsService(db);
+      // إن لم تُرسل: خزينة السند الافتراضية من الإعدادات، ثم الصندوق (1100)
+      if (treasuryId.isEmpty) {
+        treasuryId = await settings.get<String>('vouchers.default_treasury_account_id');
+      }
       if (treasuryId.isEmpty) {
         final cash = await (db.select(db.accounts)..where((t) => t.code.equals('1100'))).getSingleOrNull();
         if (cash == null) {
@@ -92,11 +97,17 @@ class VouchersRoutes {
       if (tAcc == null || cAcc == null) return jsonErr(400, 'حساب محاسبي غير موجود');
 
       final isReceipt = kind == 'قبض';
+      if (!isReceipt && await settings.get<bool>('vouchers.block_overdraft') && tAcc.type == 'asset') {
+        final bal = await settings.accountBalance(treasuryId);
+        if (bal < amount) {
+          return jsonErr(400, 'رصيد «${tAcc.name}» غير كافٍ: المتاح $bal والمطلوب $amount');
+        }
+      }
       final debitId  = isReceipt ? treasuryId : counterId;
       final creditId = isReceipt ? counterId : treasuryId;
 
       final voucherNo = (b['voucher_no'] ?? '').toString().trim().isEmpty
-          ? 'V-${DateTime.now().millisecondsSinceEpoch}'
+          ? await settings.nextVoucherNo(kind, voucherDate)
           : b['voucher_no'].toString();
 
       // 1) القيد المحاسبي

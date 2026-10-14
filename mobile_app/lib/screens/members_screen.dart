@@ -4,10 +4,13 @@ import 'package:provider/provider.dart';
 
 import '../core/api_client.dart';
 import '../core/models.dart';
+import '../core/num_parse.dart';
 import '../core/rbac.dart';
 import '../core/theme.dart';
 import '../state/controllers.dart';
+import '../state/settings_controller.dart';
 import '../widgets/ui.dart';
+import '../widgets/ui_kit.dart';
 
 class MembersScreen extends StatefulWidget {
   const MembersScreen({super.key});
@@ -98,7 +101,7 @@ class _MembersScreenState extends State<MembersScreen> {
                         '$f (${f == 'الكل' ? data.members.length : f == 'نشط' ? activeCount : data.members.length - activeCount})',
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                     selected: filter == f,
-                    selectedColor: c.primary,
+                    selectedColor: c.isDark ? c.primaryMid : c.primary,
                     labelStyle: TextStyle(color: filter == f ? Colors.white : c.sub),
                     onSelected: (_) => setState(() => filter = f),
                   ),
@@ -409,21 +412,15 @@ class _MembersScreenState extends State<MembersScreen> {
   }
 
   Future<void> _confirmDelete(Member m) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('تأكيد الحذف'),
-        content: Text('حذف العضو "${m.name}" نهائياً؟ لا يمكن التراجع.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: TextButton.styleFrom(foregroundColor: const Color(0xFFB71C1C)),
-              child: const Text('حذف نهائياً')),
-        ],
-      ),
+    final ok = await confirmDialog(
+      context,
+      title: 'تأكيد الحذف',
+      message: 'حذف العضو "${m.name}" نهائياً؟ لا يمكن التراجع.',
+      confirmText: 'حذف نهائياً',
+      danger: true,
+      icon: Icons.delete_forever,
     );
-    if (ok != true || !mounted) return;
+    if (!ok || !mounted) return;
     try {
       await context.read<DataController>().deleteMember(m.id);
       if (mounted) uiToast(context, 'تم حذف العضو', success: true);
@@ -448,7 +445,13 @@ class _MemberFormState extends State<_MemberForm> {
   late final phone = TextEditingController(text: widget.member?.phone ?? '');
   late final city = TextEditingController(text: widget.member?.city ?? '');
   late final join = TextEditingController(text: widget.member?.joinDate ?? '');
-  late final sub = TextEditingController(text: (widget.member?.monthlySubscription ?? 500).toString());
+  // الاشتراك الشهري: قيمة العضو، وإلا الافتراضية من إعدادات النظام، وإلا 500
+  late final sub = TextEditingController(
+      text: (widget.member?.monthlySubscription ??
+              (context.read<SettingsController>().defaultSubscription > 0
+                  ? context.read<SettingsController>().defaultSubscription.toInt()
+                  : 500))
+          .toString());
   bool busy = false;
   String? err;
 
@@ -501,7 +504,7 @@ class _MemberFormState extends State<_MemberForm> {
                         phone: phone.text.trim(),
                         city: city.text.trim().isEmpty ? null : city.text.trim(),
                         joinDate: join.text.trim().isEmpty ? null : join.text.trim(),
-                        monthlySubscription: int.tryParse(sub.text.trim()) ?? 0,
+                        monthlySubscription: parseInt(sub.text.trim()) ?? 0,
                       );
                     } else {
                       await data.updateMember(widget.member!.id, {
@@ -510,7 +513,7 @@ class _MemberFormState extends State<_MemberForm> {
                         'phone': phone.text.trim(),
                         'city': city.text.trim().isEmpty ? null : city.text.trim(),
                         'join_date': join.text.trim().isEmpty ? null : join.text.trim(),
-                        'monthly_subscription': int.tryParse(sub.text.trim()) ?? 0,
+                        'monthly_subscription': parseInt(sub.text.trim()) ?? 0,
                       });
                     }
                     if (context.mounted) {

@@ -378,6 +378,18 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
                         ),
                       ),
+                    const SizedBox(height: 8),
+                    // الخادم الحالي مع إمكانية التبديل (محلي/سحابي) دون العودة للشاشة الأولى
+                    TextButton.icon(
+                      onPressed: () async {
+                        await Navigator.of(context)
+                            .push(MaterialPageRoute(builder: (_) => const ServersScreen()));
+                        if (mounted) setState(() {});
+                      },
+                      icon: Icon(Icons.dns, size: 16, color: c.mu),
+                      label: Text('الخادم: ${ServerProfiles.active?.name ?? AppConfig.baseUrl} — تغيير',
+                          style: TextStyle(fontSize: 12, color: c.sub)),
+                    ),
                   ],
                 ),
               ),

@@ -6,6 +6,7 @@ import '../core/models.dart';
 import '../core/theme.dart';
 import '../state/controllers.dart';
 import '../widgets/ui.dart';
+import '../widgets/ui_kit.dart';
 
 class SchedulerScreen extends StatefulWidget {
   const SchedulerScreen({super.key});
@@ -76,8 +77,7 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
           left: 18,
           child: FloatingActionButton(
             onPressed: _add,
-            backgroundColor: c.primaryMid,
-            child: const Icon(Icons.add, color: Colors.white),
+            child: const Icon(Icons.add),
           ),
         ),
       ],
@@ -99,18 +99,15 @@ class _SchedulerScreenState extends State<SchedulerScreen> {
   }
 
   Future<void> _confirmDelete(EventModel e) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('حذف الموعد'),
-        content: Text('حذف "${e.title}" نهائياً؟'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حذف')),
-        ],
-      ),
+    final ok = await confirmDialog(
+      context,
+      title: 'حذف الموعد',
+      message: 'حذف "${e.title}" نهائياً؟',
+      confirmText: 'حذف',
+      danger: true,
+      icon: Icons.event_busy,
     );
-    if (ok != true || !mounted) return;
+    if (!ok || !mounted) return;
     try {
       await context.read<DataController>().deleteEvent(e.id);
       if (mounted) uiToast(context, 'تم حذف الموعد', success: true);

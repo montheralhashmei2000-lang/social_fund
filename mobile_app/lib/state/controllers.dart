@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:local_auth/local_auth.dart';
 
 import '../core/api_client.dart';
@@ -14,16 +15,35 @@ import '../services/push_service.dart';
 
 /// وضع النظام/الثيم - يُحفظ في التخزين الآمن.
 class ThemeController extends ChangeNotifier {
-  bool dark = false;
+  ThemeMode mode = ThemeMode.system;
+  double textScale = 1.0;
+
+  /// للتوافق مع الاستخدامات القديمة: true فقط عند اختيار الداكن صراحةً.
+  bool get dark => mode == ThemeMode.dark;
+
+  static const scales = <(String, double)>[('صغير', 0.9), ('عادي', 1.0), ('كبير', 1.15), ('كبير جداً', 1.3)];
 
   Future<void> load() async {
-    dark = await SecureStore.isDarkMode();
+    mode = switch (await SecureStore.themeMode()) {
+      'dark' => ThemeMode.dark,
+      'light' => ThemeMode.light,
+      _ => ThemeMode.system,
+    };
+    textScale = await SecureStore.textScale();
     notifyListeners();
   }
 
-  Future<void> setDark(bool value) async {
-    dark = value;
-    await SecureStore.setDarkMode(value);
+  Future<void> setMode(ThemeMode m) async {
+    mode = m;
+    await SecureStore.setThemeMode(m.name);
+    notifyListeners();
+  }
+
+  Future<void> setDark(bool value) => setMode(value ? ThemeMode.dark : ThemeMode.light);
+
+  Future<void> setTextScale(double v) async {
+    textScale = v;
+    await SecureStore.setTextScale(v);
     notifyListeners();
   }
 }
@@ -360,6 +380,7 @@ class DataController extends ChangeNotifier {
     required int amount,
     required String requestDate,
     String? note,
+    Map<String, dynamic>? money,
   }) async {
     final created = await _api.createAid(
       memberId: memberId,
@@ -367,6 +388,7 @@ class DataController extends ChangeNotifier {
       amount: amount,
       requestDate: requestDate,
       note: note,
+      money: money,
     );
     aids.insert(0, created);
     notifyListeners();
@@ -392,12 +414,14 @@ class DataController extends ChangeNotifier {
     required int amount,
     required String paymentDate,
     required String method,
+    Map<String, dynamic>? money,
   }) async {
     final created = await _api.createSubscription(
       memberId: memberId,
       amount: amount,
       paymentDate: paymentDate,
       method: method,
+      money: money,
     );
     subscriptions.insert(0, created);
 
@@ -437,6 +461,7 @@ class DataController extends ChangeNotifier {
     required String description,
     required int amount,
     required String entryDate,
+    Map<String, dynamic>? money,
   }) async {
     final created = await _api.createTreasuryEntry(
       type: type,
@@ -444,6 +469,7 @@ class DataController extends ChangeNotifier {
       description: description,
       amount: amount,
       entryDate: entryDate,
+      money: money,
     );
     treasury.insert(0, created);
     notifyListeners();

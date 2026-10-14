@@ -201,9 +201,8 @@ class _CurrenciesScreenState extends State<CurrenciesScreen> {
       backgroundColor: c.bg,
       appBar: AppBar(title: const Text('العملات وأسعار الصرف'), backgroundColor: c.primaryDark),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: c.primaryMid,
         onPressed: _busy ? null : _add,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(Icons.add),
       ),
       body: !ctl.loaded && ctl.all.isEmpty
           ? (ctl.lastError != null

@@ -1,7 +1,9 @@
 ﻿import 'dart:convert';
+import 'dart:io' show HttpConnectionInfo;
 import 'package:shelf/shelf.dart';
 import '../core/auth.dart';
 import '../db/database.dart';
+import '../services/audit_service.dart';
 import '../services/session_service.dart';
 import 'authorization.dart';
 
@@ -15,6 +17,40 @@ Middleware corsMiddleware() => (inner) => (req) async {
   if (req.method == 'OPTIONS') return Response.ok('', headers: _cors);
   final res = await inner(req);
   return res.change(headers: {...res.headers, ..._cors});
+};
+
+/// يسجّل كل عملية كتابة ناجحة (من فعل ماذا ومتى) في سجل العمليات.
+/// الدخول والخروج يُسجَّلان في مساراتهما؛ ورموز الإشعارات لا تُسجَّل.
+Middleware auditMiddleware(AppDatabase db) => (inner) => (req) async {
+  var res = await inner(req);
+  final m = req.method;
+  final isWrite = m == 'POST' || m == 'PUT' || m == 'PATCH' || m == 'DELETE';
+  final path = '/' + req.url.path;
+  if (isWrite && res.statusCode < 400 &&
+      !path.startsWith('/auth/') && !path.startsWith('/push/')) {
+    var (action, resource, id, summary) = AuditService.describe(m, path);
+    if (action == 'create' && id == null) {
+      // معرّف السجل الجديد يأتي في جسم الرد (الجسم يُقرأ مرة واحدة ثم يُعاد تركيبه).
+      final text = await res.readAsString();
+      res = res.change(body: text);
+      try {
+        final j = jsonDecode(text);
+        if (j is Map && j['id'] is String) {
+          id = j['id'] as String;
+          final short = id.length > 8 ? id.substring(0, 8) : id;
+          summary = '$summary ($short)';
+        }
+      } catch (_) {}
+    }
+    final info = req.context['shelf.io.connection_info'];
+    await AuditService.log(
+      db,
+      userId: req.context['userId'] as String?,
+      action: action, resourceType: resource, resourceId: id, summary: summary,
+      ip: info is HttpConnectionInfo ? info.remoteAddress.address : null,
+    );
+  }
+  return res;
 };
 
 /// ترويسات أمان أساسية لكل رد (الواجهة تطبيق جوال، لكن المسارات قد تُفتح في متصفح).

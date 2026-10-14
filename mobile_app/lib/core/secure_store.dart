@@ -43,6 +43,24 @@ class SecureStore {
 
   static Future<bool> isDarkMode() async => await _storage.read(key: _darkModeKey) == '1';
 
+  static const String _themeModeKey = 'sf_theme_mode';
+  static const String _textScaleKey = 'sf_text_scale';
+
+  /// نمط المظهر: system | light | dark. يهاجر من مفتاح الوضع الداكن القديم إن لم يُحفظ بعد.
+  static Future<String> themeMode() async {
+    final v = await _storage.read(key: _themeModeKey);
+    if (v == 'system' || v == 'light' || v == 'dark') return v!;
+    return await isDarkMode() ? 'dark' : 'system';
+  }
+
+  static Future<void> setThemeMode(String mode) => _storage.write(key: _themeModeKey, value: mode);
+
+  /// معامل حجم الخط (0.9 – 1.3).
+  static Future<double> textScale() async =>
+      double.tryParse(await _storage.read(key: _textScaleKey) ?? '') ?? 1.0;
+
+  static Future<void> setTextScale(double v) => _storage.write(key: _textScaleKey, value: v.toString());
+
   static const String _displayCurrencyKey = 'sf_display_currency';
   static const String _serversKey = 'sf_servers';
   static const String _activeServerKey = 'sf_active_server';

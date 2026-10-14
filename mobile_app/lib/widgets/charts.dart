@@ -91,7 +91,7 @@ class _TrendPainter extends CustomPainter {
       canvas.drawCircle(Offset(x, yOf(points[i].value)), 3, Paint()..color = c.ok);
       if (points.length <= 13) {
         tp.text = TextSpan(
-            text: points[i].label, style: TextStyle(fontSize: 9, color: c.mu));
+            text: points[i].label, style: TextStyle(fontFamily: AppTheme.bodyFont, fontSize: 9, color: c.mu));
         tp.layout();
         tp.paint(canvas, Offset(x - tp.width / 2, size.height - 12));
       }

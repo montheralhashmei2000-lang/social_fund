@@ -6,6 +6,7 @@ import '../core/models.dart';
 import '../core/rbac.dart';
 import '../state/controllers.dart';
 import '../widgets/ui.dart';
+import '../widgets/ui_kit.dart';
 
 class UsersScreen extends StatefulWidget {
   const UsersScreen({super.key});
@@ -144,18 +145,15 @@ class _UsersScreenState extends State<UsersScreen> {
   }
 
   Future<void> _delete(AdminUser u) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('حذف المستخدم'),
-        content: Text('تعطيل وحذف حساب "${u.username}"؟ لن يتمكن من الدخول بعد الآن.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حذف')),
-        ],
-      ),
+    final ok = await confirmDialog(
+      context,
+      title: 'حذف المستخدم',
+      message: 'تعطيل وحذف حساب "${u.username}"؟ لن يتمكن من الدخول بعد الآن.',
+      confirmText: 'حذف',
+      danger: true,
+      icon: Icons.person_remove,
     );
-    if (ok != true || !mounted) return;
+    if (!ok || !mounted) return;
     try {
       await context.read<DataController>().deleteUser(u.id);
       _load();
@@ -233,8 +231,7 @@ class _UsersScreenState extends State<UsersScreen> {
           left: 18,
           child: FloatingActionButton(
             onPressed: _add,
-            backgroundColor: c.primaryMid,
-            child: const Icon(Icons.person_add, color: Colors.white),
+            child: const Icon(Icons.person_add),
           ),
         ),
       ],

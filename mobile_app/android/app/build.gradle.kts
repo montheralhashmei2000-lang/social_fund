@@ -16,6 +16,10 @@ val hasReleaseKeystore = keystorePropertiesFile.exists()
 if (hasReleaseKeystore) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
+if (!hasReleaseKeystore) {
+    // نسخة release بلا key.properties توقَّع بمفتاح debug: تصلح للتجربة فقط ولا تُنشر ولا تُحدَّث فوق نسخة موقّعة.
+    logger.warn("WARNING: android/key.properties غير موجود — سيُوقَّع APK بمفتاح debug (للتجربة فقط).")
+}
 
 android {
     namespace = "com.socialfund"

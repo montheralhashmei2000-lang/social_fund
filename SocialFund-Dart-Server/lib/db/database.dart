@@ -1,6 +1,7 @@
 // lib/db/database.dart
 // فتح الاتصال بـ SQLite + المخطط الكامل + الترقيات.
 
+import '../services/app_settings_service.dart';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -87,6 +88,9 @@ class AppDatabase extends _$AppDatabase {
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON;');
+          for (final sql in AppSettingsService.createTablesSql) {
+            await customStatement(sql);
+          }
           await seedCurrencies();
         },
       );

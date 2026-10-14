@@ -2,22 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/api_client.dart';
+import '../core/num_parse.dart';
 import '../core/models.dart';
 import '../core/theme.dart';
 import '../services/api_service.dart';
 import '../state/expansion_controller.dart';
 import '../widgets/ui.dart';
+import '../widgets/ui_kit.dart';
 
 /// المستفيدون + المساعدات الدورية (تبويبان).
 class BeneficiariesScreen extends StatefulWidget {
-  const BeneficiariesScreen({super.key});
+  /// true = تفتح على «المساعدات الدورية» (تبويب مستقل في التنقل).
+  final bool initialPeriodic;
+  const BeneficiariesScreen({super.key, this.initialPeriodic = false});
 
   @override
   State<BeneficiariesScreen> createState() => _BeneficiariesScreenState();
 }
 
 class _BeneficiariesScreenState extends State<BeneficiariesScreen> {
-  bool periodicTab = false;
+  late bool periodicTab = widget.initialPeriodic;
 
   @override
   void initState() {
@@ -58,58 +62,112 @@ class _BeneficiariesScreenState extends State<BeneficiariesScreen> {
 
   // ================= المستفيدون =================
 
+  String benFilter = 'الكل';
+  String benQuery = '';
+
   Widget _beneficiaries(BuildContext context, ExpansionController ctl) {
     final c = App.of(context);
-    return Stack(
-      children: [
-        if (ctl.beneficiaries.isEmpty)
-          const Center(child: EmptyState(icon: Icons.groups, text: 'لا مستفيدين مسجلين'))
-        else
-          ListView(
-            padding: const EdgeInsets.all(16),
-            children: ctl.beneficiaries.map((b) => UiCard(
-                  accentRight: b.status == 'active' ? c.primary : c.warn,
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: c.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(b.fullName.isNotEmpty ? b.fullName[0] : '?',
-                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: c.primary)),
+    final all = ctl.beneficiaries;
+    final active = all.where((b) => b.status == 'active').toList();
+    final q = benQuery.trim();
+    final shown = [
+      for (final b in all)
+        if ((benFilter == 'الكل' || (benFilter == 'نشط') == (b.status == 'active')) &&
+            (q.isEmpty || b.fullName.contains(q)))
+          b,
+    ];
+    final members = active.fold<int>(0, (sum, b) => sum + b.familySize);
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'addBeneficiary',
+        onPressed: _addBeneficiarySheet,
+        icon: const Icon(Icons.person_add),
+        label: const Text('مستفيد جديد'),
+      ),
+      body: all.isEmpty
+          ? EmptyState(
+              icon: Icons.groups,
+              text: 'لا مستفيدين مسجلين',
+              subtitle: 'سجّل الأسر والحالات مع دراسة الحالة لتربط بها المساعدات والسندات',
+              actionText: 'مستفيد جديد',
+              onAction: _addBeneficiarySheet,
+            )
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: StatTile(
+                        icon: Icons.groups,
+                        label: 'مستفيدون نشطون',
+                        value: '${active.length}',
+                        sub: 'من ${all.length}',
+                        color: c.primary,
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(b.fullName,
-                                maxLines: 1, overflow: TextOverflow.ellipsis,
-                                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: c.tx)),
-                            Text('أسرة من ${b.familySize} · دخل ${money2(b.monthlyIncome)}',
-                                style: TextStyle(fontSize: 11.5, color: c.mu)),
-                          ],
-                        ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: StatTile(
+                        icon: Icons.family_restroom,
+                        label: 'أفراد الأسر النشطة',
+                        value: '$members',
+                        color: c.info,
                       ),
-                      UiBadge(b.status == 'active' ? 'نشط' : 'معلق'),
-                    ],
-                  ),
-                )).toList(),
-          ),
-        Positioned(
-          bottom: 18,
-          left: 18,
-          child: FloatingActionButton(
-            backgroundColor: c.primaryMid,
-            child: const Icon(Icons.person_add, color: Colors.white),
-            onPressed: () => _addBeneficiarySheet(),
-          ),
-        ),
-      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SearchField(hint: 'ابحث باسم المستفيد…', onChanged: (v) => setState(() => benQuery = v)),
+                const SizedBox(height: 10),
+                FilterChipsBar(
+                  options: const ['الكل', 'نشط', 'معلق'],
+                  selected: benFilter,
+                  counts: {'الكل': all.length, 'نشط': active.length, 'معلق': all.length - active.length},
+                  onSelected: (v) => setState(() => benFilter = v),
+                ),
+                const SizedBox(height: 12),
+                if (shown.isEmpty)
+                  const EmptyState(icon: Icons.search_off, text: 'لا نتائج مطابقة')
+                else
+                  for (final b in shown)
+                    UiCard(
+                      accentRight: b.status == 'active' ? c.primary : c.warn,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: c.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(b.fullName.isNotEmpty ? b.fullName[0] : '?',
+                                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: c.primary)),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(b.fullName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: c.tx)),
+                                Text('أسرة من ${b.familySize} · دخل ${money2(b.monthlyIncome)}',
+                                    style: TextStyle(fontSize: 11.5, color: c.mu)),
+                              ],
+                            ),
+                          ),
+                          UiBadge(b.status == 'active' ? 'نشط' : 'معلق'),
+                        ],
+                      ),
+                    ),
+              ],
+            ),
     );
   }
 
@@ -148,8 +206,8 @@ class _BeneficiariesScreenState extends State<BeneficiariesScreen> {
                   'full_name': name.text.trim(),
                   'national_id': nid.text.trim().isEmpty ? null : nid.text.trim(),
                   'phone': phone.text.trim().isEmpty ? null : phone.text.trim(),
-                  'family_size': int.tryParse(family.text.trim()) ?? 1,
-                  'monthly_income': double.tryParse(income.text.trim()) ?? 0,
+                  'family_size': parseInt(family.text.trim()) ?? 1,
+                  'monthly_income': parseDouble(income.text.trim()) ?? 0,
                   'housing': housing.text.trim().isEmpty ? null : housing.text.trim(),
                   'case_summary': caseSummary.text.trim().isEmpty ? null : caseSummary.text.trim(),
                 });
@@ -169,11 +227,40 @@ class _BeneficiariesScreenState extends State<BeneficiariesScreen> {
   Widget _periodic(BuildContext context, ExpansionController ctl) {
     final c = App.of(context);
     final due = ctl.periodicAids.where((p) => p.duePeriod != null).toList();
-    return Stack(
-      children: [
-        ListView(
-          padding: const EdgeInsets.all(16),
+    final total = ctl.periodicAids.fold<double>(0, (sum, p) => sum + (p.monthlyAmount as num).toDouble());
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'addPeriodic',
+        onPressed: _addPeriodicSheet,
+        icon: const Icon(Icons.add_card),
+        label: const Text('مساعدة دورية'),
+      ),
+      body: ctl.periodicAids.isEmpty
+          ? EmptyState(
+              icon: Icons.autorenew,
+              text: 'لا مساعدات دورية',
+              subtitle: 'أنشئ مخصصاً شهرياً لمستفيد ليظهر مستحقاً للصرف كل شهر',
+              actionText: 'مساعدة دورية',
+              onAction: _addPeriodicSheet,
+            )
+          : ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
           children: [
+            Row(
+              children: [
+                Expanded(
+                  child: StatTile(
+                    icon: Icons.autorenew,
+                    label: 'إجمالي المخصص الشهري',
+                    value: money2(total),
+                    sub: '${ctl.periodicAids.length} مساعدة · ${due.length} مستحقة',
+                    color: due.isEmpty ? c.primary : c.warn,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             if (due.isNotEmpty) ...[
               UiCard(
                 accentRight: c.warn,
@@ -226,16 +313,6 @@ class _BeneficiariesScreenState extends State<BeneficiariesScreen> {
                 )),
           ],
         ),
-        Positioned(
-          bottom: 18,
-          left: 18,
-          child: FloatingActionButton(
-            backgroundColor: c.primaryMid,
-            child: const Icon(Icons.add_card, color: Colors.white),
-            onPressed: () => _addPeriodicSheet(),
-          ),
-        ),
-      ],
     );
   }
 
@@ -270,7 +347,7 @@ class _BeneficiariesScreenState extends State<BeneficiariesScreen> {
             UiButton(
               text: 'إنشاء',
               onPressed: () async {
-                final amt = double.tryParse(amount.text.trim()) ?? 0;
+                final amt = parseDouble(amount.text.trim()) ?? 0;
                 if (amt <= 0) {
                   uiToast(ctx, 'أدخل مبلغاً صحيحاً', error: true);
                   return;

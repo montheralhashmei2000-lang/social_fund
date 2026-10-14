@@ -15,7 +15,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:social_fund_app/core/api_client.dart';
 import 'package:social_fund_app/main.dart';
 import 'package:social_fund_app/screens/home_shell.dart';
+import 'package:social_fund_app/screens/settings_screen.dart';
 import 'package:social_fund_app/services/push_service.dart';
+import 'package:social_fund_app/widgets/ui_kit.dart';
 
 final String? kDir = Platform.environment['PREVIEW_DIR'];
 
@@ -62,10 +64,67 @@ class _Fake implements HttpClientAdapter {
           {'code': 'YER', 'name_ar': 'ريال يمني', 'symbol': '﷼', 'decimals': 0, 'rate': 1, 'is_local': true, 'is_default': true, 'is_active': true},
           {'code': 'USD', 'name_ar': 'دولار أمريكي', 'symbol': r'$', 'decimals': 2, 'rate': 2530, 'is_local': false, 'is_default': false, 'is_active': true},
         ];
+      case '/campaigns':
+        body = [
+          {'id': 'c1', 'name': 'كسوة الشتاء', 'description': 'توفير ملابس شتوية للأسر المحتاجة', 'goal_amount': 2000000,
+            'raised': 1250000, 'spent': 400000, 'net': 850000, 'percent': 62.5, 'status': 'active'},
+          {'id': 'c2', 'name': 'سلة رمضان', 'description': null, 'goal_amount': 1000000,
+            'raised': 1000000, 'spent': 1000000, 'net': 0, 'percent': 100, 'status': 'closed'},
+        ];
+      case '/inkind/items':
+        body = [
+          {'id': 'k1', 'name': 'سلة غذائية', 'unit': 'سلة', 'quantity': 12, 'reorder_level': 20, 'low_stock': true},
+          {'id': 'k2', 'name': 'بطانية', 'unit': 'قطعة', 'quantity': 140, 'reorder_level': 30, 'low_stock': false},
+        ];
+      case '/beneficiaries':
+        body = [
+          {'id': 'b1', 'full_name': 'أسرة محمد علي', 'family_size': 6, 'monthly_income': 40000, 'status': 'active'},
+          {'id': 'b2', 'full_name': 'أسرة سعيد ناصر', 'family_size': 4, 'monthly_income': 0, 'status': 'suspended'},
+        ];
+      case '/journal':
+        body = [
+          {'id': 'j1', 'entry_no': 'JE-000001', 'entry_date': '2026-10-03', 'description': 'تحصيل اشتراكات شهر أكتوبر',
+            'entry_type': 'voucher_receipt', 'entry_type_label': 'سند قبض', 'status': 'posted', 'total': 150000,
+            'lines': [
+              {'account_id': 'ac1', 'account_name': 'الصندوق', 'account_code': '1100', 'debit': 150000, 'credit': 0},
+              {'account_id': 'ac4', 'account_name': 'إيرادات الاشتراكات', 'account_code': '4100', 'debit': 0, 'credit': 150000},
+            ]},
+          {'id': 'j2', 'entry_no': 'JE-000002', 'entry_date': '2026-10-05', 'description': 'صرف مساعدة طارئة',
+            'entry_type': 'voucher_payment', 'entry_type_label': 'سند صرف', 'status': 'draft', 'total': 40000,
+            'lines': [
+              {'account_id': 'ac5', 'account_name': 'مساعدات نقدية', 'account_code': '5100', 'debit': 40000, 'credit': 0},
+              {'account_id': 'ac1', 'account_name': 'الصندوق', 'account_code': '1100', 'debit': 0, 'credit': 40000},
+            ]},
+        ];
+      case '/journal/entry-types':
+        body = [{'key': 'general', 'label': 'قيد عام'}];
+      case '/app-settings':
+        body = <String, Object>{};
+      case '/accounts':
+        body = [
+          {'id': 'ac1', 'code': '1100', 'name': 'الصندوق', 'type': 'asset', 'type_label': 'أصول', 'currency': 'YER',
+            'is_cash': true, 'is_bank': false, 'is_wallet': false, 'is_active': true, 'balance': 342000},
+          {'id': 'ac2', 'code': '1200', 'name': 'بنك الكريمي', 'type': 'asset', 'type_label': 'أصول', 'currency': 'YER',
+            'is_cash': false, 'is_bank': true, 'is_wallet': false, 'is_active': true, 'balance': 1200000},
+        ];
       case '/fund-settings':
         body = {'name': 'الصندوق الاجتماعي التنموي', 'phone': '01234567', 'address': 'صنعاء'};
       default:
-        body = <Object>[];
+        if (o.path.startsWith('/financial-reports/trial-balance')) {
+          body = {
+            'total_debit': 513000, 'total_credit': 513000, 'balanced': true,
+            'rows': [
+              {'code': '1100', 'account': 'الصندوق', 'debit': 342000, 'credit': 0},
+              {'code': '1200', 'account': 'بنك الكريمي', 'debit': 171000, 'credit': 0},
+              {'code': '4100', 'account': 'إيرادات الاشتراكات', 'debit': 0, 'credit': 313000},
+              {'code': '4200', 'account': 'تبرعات ومنح', 'debit': 0, 'credit': 200000},
+            ],
+          };
+        } else if (o.path.startsWith('/financial-reports')) {
+          body = <String, Object>{};
+        } else {
+          body = <Object>[];
+        }
     }
     return ResponseBody.fromString(jsonEncode(body), 200, headers: {
       Headers.contentTypeHeader: ['application/json'],
@@ -84,11 +143,17 @@ Future<void> _loadFont(String family, String path) async {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  debugDisableShadows = false; // ظلال حقيقية في الصور (الاختبارات ترسمها حدوداً صلبة)
 
   setUpAll(() async {
     await _loadFont('Roboto', 'assets/fonts/Amiri-Regular.ttf');
     await _loadFont('Amiri', 'assets/fonts/Amiri-Regular.ttf');
+    // خط الواجهة (Tajawal) بأوزانه — بدونه تظهر النصوص مربعات في الصور
+    final tj = FontLoader('Tajawal');
+    for (final w in ['Regular', 'Medium', 'Bold', 'ExtraBold']) {
+      final b = File('assets/fonts/Tajawal-$w.ttf').readAsBytesSync();
+      tj.addFont(Future.value(ByteData.view(b.buffer)));
+    }
+    await tj.load();
     final icons = File('C:/flutter/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf');
     if (icons.existsSync()) {
       final loader = FontLoader('MaterialIcons')
@@ -114,6 +179,8 @@ void main() {
   }
 
   testWidgets('معاينة الشاشات', (tester) async {
+    debugDisableShadows = false; // ظلال حقيقية في الصور (الاختبارات ترسمها حدوداً صلبة)
+    addTearDown(() => debugDisableShadows = true); // تعيد الحالة الافتراضية (فحص ثوابت الاختبار)
     tester.view.physicalSize = const Size(1080, 2340);
     tester.view.devicePixelRatio = 2.625;
     addTearDown(tester.view.reset);
@@ -144,6 +211,11 @@ void main() {
       ('08_settings', Tabs.settings),
       ('09_reports', Tabs.reports),
       ('10_currencies_hub', Tabs.finReports),
+      ('14_accounts', Tabs.accounts),
+      ('15_journal', Tabs.journal),
+      ('16_campaigns', Tabs.campaigns),
+      ('17_inkind', Tabs.inkind),
+      ('18_beneficiaries', Tabs.beneficiaries),
     ];
     for (final (name, tab) in tabs) {
       PushService.openTab.value = tab;
@@ -157,13 +229,66 @@ void main() {
       await shot(tester, key, name);
     }
 
+    // تبويبات شاشة التقارير
+    PushService.openTab.value = Tabs.reports;
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    for (final (n, label) in [('19_reports_members', 'الأعضاء'), ('20_reports_aids', 'المساعدات'), ('21_reports_fin', 'مالي')]) {
+      await tester.tap(find.descendant(of: find.byType(FilterChipsBar), matching: find.text(label)).first);
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      final err = tester.takeException();
+      // ignore: prefer_interpolation_to_compose_strings
+      if (err != null) debugPrint('EXC[' + n + ']: ' + err.toString().split(String.fromCharCode(10)).first);
+      await shot(tester, key, n);
+    }
+
+    // شبكة «المزيد» من الشريط السفلي
+    PushService.openTab.value = Tabs.dashboard;
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.tap(find.text('المزيد'));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    tester.takeException();
+    await shot(tester, key, '12_more_grid');
+    await tester.tapAt(const Offset(200, 20)); // إغلاق الورقة بالنقر على الحاجز
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    PushService.openTab.value = Tabs.settings;
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    tester.takeException();
+
+    // قسم إعدادات (المساعدات) من مركز الإعدادات
+    await tester.dragUntilVisible(
+        find.text('المساعدات والمستفيدون'),
+        find.descendant(of: find.byType(SettingsScreen), matching: find.byType(Scrollable)).first,
+        const Offset(0, -300));
+    await tester.tap(find.text('المساعدات والمستفيدون'));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    tester.takeException();
+    await shot(tester, key, '13_settings_aids');
+    tester.state<NavigatorState>(find.byType(Navigator).first).pop();
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
     // نموذج إضافة عضو (ورقة سفلية)
     PushService.openTab.value = Tabs.members;
     for (var i = 0; i < 6; i++) {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 60)));
       await tester.pump(const Duration(milliseconds: 100));
     }
-    await tester.tap(find.byType(FloatingActionButton).first);
+    await tester.tap(find.byIcon(Icons.add).first);
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
@@ -172,6 +297,8 @@ void main() {
   }, skip: kDir == null);
 
   testWidgets('شاشات الدخول', (tester) async {
+    debugDisableShadows = false; // ظلال حقيقية في الصور (الاختبارات ترسمها حدوداً صلبة)
+    addTearDown(() => debugDisableShadows = true); // تعيد الحالة الافتراضية (فحص ثوابت الاختبار)
     tester.view.physicalSize = const Size(1080, 2340);
     tester.view.devicePixelRatio = 2.625;
     addTearDown(tester.view.reset);

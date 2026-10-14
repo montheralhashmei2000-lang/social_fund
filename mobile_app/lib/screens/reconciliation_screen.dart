@@ -60,8 +60,7 @@ class _ReconciliationScreenState extends State<ReconciliationScreen> {
         backgroundColor: c.primaryDark,
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: c.primaryMid,
-        icon: const Icon(Icons.post_add, color: Colors.white),
+        icon: const Icon(Icons.post_add),
         label: const Text('سطر كشف جديد', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
         onPressed: _addLine,
       ),
@@ -78,10 +77,10 @@ class _ReconciliationScreenState extends State<ReconciliationScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            _stat(context, 'رصيد الدفتر', money2(report!['ledger_balance'] as double), c.primary),
-                            _stat(context, 'مجموع الكشف', money2(report!['statement_sum'] as double), c.info),
-                            _stat(context, 'الفرق', money2(report!['difference'] as double),
-                                (report!['difference'] as double) == 0 ? c.ok : c.err),
+                            _stat(context, 'رصيد الدفتر', money2(((report!['ledger_balance'] as num?) ?? 0).toDouble()), c.primary),
+                            _stat(context, 'مجموع الكشف', money2(((report!['statement_sum'] as num?) ?? 0).toDouble()), c.info),
+                            _stat(context, 'الفرق', money2(((report!['difference'] as num?) ?? 0).toDouble()),
+                                (((report!['difference'] as num?) ?? 0).toDouble()) == 0 ? c.ok : c.err),
                           ],
                         ),
                       ),

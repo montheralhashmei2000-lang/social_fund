@@ -13,9 +13,11 @@ import '../services/api_service.dart';
 import '../services/push_service.dart';
 import '../state/controllers.dart';
 import '../state/expansion_controller.dart';
+import '../state/settings_controller.dart';
+import '../widgets/money_input.dart';
 import '../widgets/ui.dart';
+import '../widgets/ui_kit.dart';
 import 'home_shell.dart' show Tabs;
-import 'subscriptions_screen.dart' show payMethods;
 
 /// سندات القبض والصرف — مربوطة بالقيد المزدوج: كل سند يولّد قيد يومية متوازناً
 /// (يظهر في دفتر القيود وشجرة الحسابات والقوائم المالية) ومعاملة خزينة مرآتية.
@@ -106,10 +108,8 @@ class _VouchersScreenState extends State<VouchersScreen> {
             left: 18,
             child: FloatingActionButton.extended(
               heroTag: 'addVoucher',
-              backgroundColor: kind == 'قبض' ? c.primaryMid : c.goldDark,
-              icon: const Icon(Icons.post_add, color: Colors.white),
-              label: Text('سند ${kind == 'قبض' ? 'قبض' : 'صرف'} جديد',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+              icon: const Icon(Icons.post_add),
+              label: Text('سند ${kind == 'قبض' ? 'قبض' : 'صرف'} جديد'),
               onPressed: _add,
             ),
           ),
@@ -176,6 +176,7 @@ class _VouchersScreenState extends State<VouchersScreen> {
             children: [
               Text('${v.isReceipt ? '+' : '-'}${money(v.amount)}',
                   style: TextStyle(fontWeight: FontWeight.w900, color: col, fontSize: 14.5)),
+              if (v.origin != null) OriginNote(v.origin!),
               const SizedBox(height: 3),
               UiBadge(v.isVoid ? 'ملغي' : 'معتمد'),
             ],
@@ -363,22 +364,17 @@ class _VouchersScreenState extends State<VouchersScreen> {
   }
 
   Future<void> _confirmVoid(Voucher v) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('إلغاء السند؟'),
-        content: Text(
-            'سيُنشأ قيد محاسبي عكسي للسند ${v.voucherNo} ويُعطَّل سجله في الخزينة. القيد الأصلي يبقى موثقاً ولا يمكن التراجع.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('رجوع')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: TextButton.styleFrom(foregroundColor: const Color(0xFFB71C1C)),
-              child: const Text('إلغاء السند')),
-        ],
-      ),
+    final ok = await confirmDialog(
+      context,
+      title: 'إلغاء السند؟',
+      message:
+          'سيُنشأ قيد محاسبي عكسي للسند ${v.voucherNo} ويُعطَّل سجله في الخزينة. القيد الأصلي يبقى موثقاً ولا يمكن التراجع.',
+      confirmText: 'إلغاء السند',
+      cancelText: 'رجوع',
+      danger: true,
+      icon: Icons.undo,
     );
-    if (ok != true || !mounted) return;
+    if (!ok || !mounted) return;
     try {
       await context.read<DataController>().voidVoucher(v.id);
       if (mounted) uiToast(context, 'تم إلغاء السند بقيد عكسي', success: true);
@@ -398,15 +394,21 @@ class _AddVoucherForm extends StatefulWidget {
 }
 
 class _AddVoucherFormState extends State<_AddVoucherForm> {
+  /// طريقة الدفع المختارة، أو الأولى من إعدادات النظام إن لم يختر المستخدم أو حُذفت من القائمة.
+  String get curMethodForSubmit {
+    final m = context.read<SettingsController>().paymentMethods;
+    return m.contains(method) ? method! : m.first;
+  }
+
   late String kind = widget.initialKind;
   String partySource = 'member'; // member | donor | beneficiary | other
   String? memberId;
   String? donorId;
   String? beneficiaryId;
   final partyOther = TextEditingController();
-  final amount = TextEditingController();
+  final moneyCtl = MoneyInputController();
   final description = TextEditingController();
-  String method = 'نقداً';
+  String? method;
   DateTime date = DateTime.now();
   List<Account> accounts = [];
   String? treasuryIdState;
@@ -470,7 +472,13 @@ class _AddVoucherFormState extends State<_AddVoucherForm> {
       );
     }
 
-    final treasurySel = treasuryIdState ?? liquid.first.id;
+    // خزينة السند: اختيار المستخدم، ثم الافتراضية من الإعدادات (إن كانت سائلة)، ثم الأولى
+    final settings = context.watch<SettingsController>();
+    final methods = settings.paymentMethods;
+    final curMethod = methods.contains(method) ? method! : methods.first;
+    final defTreasury = settings.defaultTreasuryAccountId;
+    final treasurySel = treasuryIdState ??
+        (liquid.any((a) => a.id == defTreasury) ? defTreasury : liquid.first.id);
     final counterChoices = counterList.where((a) => a.id != treasurySel).toList();
     final counterSel = (counterId != null && counterId != treasurySel && counterChoices.any((a) => a.id == counterId))
         ? counterId
@@ -495,7 +503,7 @@ class _AddVoucherFormState extends State<_AddVoucherForm> {
               ChoiceChip(
                 label: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                 selected: partySource == key,
-                selectedColor: c.primary,
+                selectedColor: c.isDark ? c.primaryMid : c.primary,
                 labelStyle: TextStyle(color: partySource == key ? Colors.white : c.sub),
                 onSelected: (_) => setState(() => partySource = key),
               ),
@@ -537,13 +545,13 @@ class _AddVoucherFormState extends State<_AddVoucherForm> {
             items: counterChoices.map((a) => DropdownMenuItem(value: a.id, child: Text('${a.code} - ${a.name}'))).toList(),
             onChanged: (v) => setState(() => counterId = v),
           ),
-        UiField(label: 'المبلغ (﷼) *', controller: amount, keyboardType: TextInputType.number, icon: Icons.payments_outlined),
+        MoneyInput(controller: moneyCtl),
         UiField(label: 'الوصف *', controller: description, hint: 'سبب إصدار السند'),
         UiDropdown<String>(
           label: 'طريقة الدفع',
-          value: method,
-          items: payMethods.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
-          onChanged: (v) => setState(() => method = v ?? 'نقداً'),
+          value: curMethod,
+          items: methods.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+          onChanged: (v) => setState(() => method = v ?? curMethod),
         ),
         Row(
           children: [
@@ -585,7 +593,8 @@ class _AddVoucherFormState extends State<_AddVoucherForm> {
   }
 
   Future<void> _submit(BuildContext context, String treasurySel, String? counterSel) async {
-    final amt = int.tryParse(amount.text.trim()) ?? 0;
+    final mv = moneyCtl.read(context);
+    final amt = mv?.local ?? 0;
     final desc = description.text.trim();
 
     String? partyId;
@@ -622,8 +631,9 @@ class _AddVoucherFormState extends State<_AddVoucherForm> {
       await context.read<DataController>().createVoucher({
         'kind': kind,
         'amount': amt,
+        ...?mv?.extras,
         'voucher_date': date.toIso8601String().split('T').first,
-        'method': method,
+        'method': curMethodForSubmit,
         'description': desc,
         if (partySource == 'member') 'member_id': partyId,
         if (partySource == 'donor') 'donor_id': partyId,

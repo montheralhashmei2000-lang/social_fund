@@ -7,6 +7,7 @@ import '../core/theme.dart';
 import '../services/api_service.dart';
 import '../state/expansion_controller.dart';
 import '../widgets/ui.dart';
+import '../widgets/ui_kit.dart';
 import 'reconciliation_screen.dart';
 
 const accountTypes = [
@@ -33,6 +34,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
     });
   }
 
+  String query = '';
+
   @override
   Widget build(BuildContext context) {
     final c = App.of(context);
@@ -41,77 +44,107 @@ class _AccountsScreenState extends State<AccountsScreen> {
     if (ctl.loading && ctl.accounts.isEmpty) return const LoadingView();
 
     if (ctl.accounts.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const EmptyState(icon: Icons.account_balance, text: 'شجرة الحسابات فارغة'),
-            UiButton(
-              text: 'إنشاء شجرة الحسابات الافتراضية',
-              onPressed: () async {
-                await ctl.loadAccounts(); // تحديث الحالة
-                try {
-                  await ApiService.instance.seedAccounts();
-                  await ctl.loadAccounts();
-                } on ApiException catch (e) {
-                  if (context.mounted) uiToast(context, e.message, error: true);
-                }
-              },
-            ),
-          ],
-        ),
+      return EmptyState(
+        icon: Icons.account_balance,
+        text: 'شجرة الحسابات فارغة',
+        subtitle: 'أنشئ الشجرة الافتراضية (صندوق، بنوك، إيرادات، مصروفات) ثم عدّلها كما تشاء',
+        actionText: 'إنشاء شجرة الحسابات الافتراضية',
+        onAction: () async {
+          try {
+            await ApiService.instance.seedAccounts();
+            await ctl.loadAccounts();
+          } on ApiException catch (e) {
+            if (context.mounted) uiToast(context, e.message, error: true);
+          }
+        },
       );
     }
 
-    return Stack(
-      children: [
-        ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            for (final (typeKey, typeLabel) in accountTypes)
-              if (ctl.accounts.any((a) => a.type == typeKey)) ...[
-                _sectionHeader(context, typeLabel, gold: typeKey == 'asset'),
-                ...ctl.accounts.where((a) => a.type == typeKey).map((a) => _accountCard(context, a)),
-              ],
-          ],
-        ),
-        Positioned(
-          bottom: 18,
-          left: 18,
-          child: Row(
+    final q = query.trim();
+    final shown = [
+      for (final a in ctl.accounts)
+        if (q.isEmpty || '${a.code} ${a.name} ${a.bankName ?? ''}'.contains(q)) a,
+    ];
+    double sumOf(bool Function(Account) test) =>
+        ctl.accounts.where(test).fold(0.0, (s, a) => s + a.balance);
+    final liquid = sumOf((a) => a.isLiquid);
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'accountsMenu',
+        onPressed: _actionsMenu,
+        icon: const Icon(Icons.add),
+        label: const Text('إجراء'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+        children: [
+          Row(
             children: [
-              FloatingActionButton(
-                heroTag: 'transfer',
-                onPressed: () => _transferSheet(),
-                backgroundColor: c.goldDark,
-                child: const Icon(Icons.swap_horiz, color: Colors.white),
+              Expanded(
+                child: StatTile(
+                  icon: Icons.savings,
+                  label: 'السيولة (صندوق/بنوك/محافظ)',
+                  value: money2(liquid),
+                  color: liquid >= 0 ? c.primary : c.err,
+                ),
               ),
               const SizedBox(width: 10),
-              FloatingActionButton(
-                heroTag: 'addAccount',
-                onPressed: () => _addAccountSheet(),
-                backgroundColor: c.primaryMid,
-                child: const Icon(Icons.add, color: Colors.white),
+              Expanded(
+                child: StatTile(
+                  icon: Icons.account_tree,
+                  label: 'عدد الحسابات',
+                  value: '${ctl.accounts.length}',
+                  sub: '${ctl.accounts.where((a) => a.isLiquid).length} سائلة',
+                  color: c.info,
+                ),
               ),
             ],
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _sectionHeader(BuildContext context, String title, {bool gold = false}) {
-    final c = App.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 6),
-      child: Row(
-        children: [
-          Container(width: 26, height: 3, color: gold ? c.gold : c.primary),
-          const SizedBox(width: 8),
-          Text(title, style: AppTheme.sectionTitle(c, size: 15)),
+          const SizedBox(height: 12),
+          SearchField(hint: 'ابحث بالرمز أو اسم الحساب أو البنك…', onChanged: (v) => setState(() => query = v)),
+          if (shown.isEmpty)
+            const EmptyState(icon: Icons.search_off, text: 'لا نتائج مطابقة')
+          else
+            for (final (typeKey, typeLabel) in accountTypes)
+              if (shown.any((a) => a.type == typeKey)) ...[
+                SectionHeader(
+                  typeLabel,
+                  subtitle: 'إجمالي الأرصدة: ${money2(sumOf((a) => a.type == typeKey))}',
+                ),
+                ...shown.where((a) => a.type == typeKey).map((a) => _accountCard(context, a)),
+              ],
         ],
       ),
     );
+  }
+
+  /// قائمة الإجراءات: إضافة حساب أو تحويل بين حسابين (بدل زرين عائمين متراكبين).
+  Future<void> _actionsMenu() async {
+    final pick = await uiSheet<String>(
+      context,
+      title: 'إجراءات الحسابات',
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.add_circle_outline),
+            title: const Text('إضافة حساب جديد'),
+            subtitle: const Text('حساب بنكي أو صندوق أو محفظة أو حساب محاسبي'),
+            onTap: () => Navigator.pop(context, 'add'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.swap_horiz),
+            title: const Text('تحويل بين حسابين'),
+            subtitle: const Text('يُنشئ قيداً متوازناً تلقائياً'),
+            onTap: () => Navigator.pop(context, 'transfer'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (pick == 'add') await _addAccountSheet();
+    if (pick == 'transfer') await _transferSheet();
   }
 
   Widget _accountCard(BuildContext context, Account a) {
@@ -149,10 +182,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(money2(a.balance),
-                  style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 14.5,
-                      color: a.balance >= 0 ? c.primary : c.err)),
+                  textDirection: TextDirection.rtl,
+                  style: AppTheme.amount(c, size: 14.5, color: a.balance >= 0 ? c.primary : c.err, weight: FontWeight.w900)),
               if (a.isLiquid)
                 GestureDetector(
                   onTap: () {

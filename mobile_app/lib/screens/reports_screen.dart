@@ -6,10 +6,14 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/api_client.dart';
+import '../core/theme.dart';
 import '../services/api_service.dart';
 import '../state/controllers.dart';
 import '../widgets/ui.dart';
+import '../widgets/ui_kit.dart';
 
+/// التقارير والإحصائيات: ملخص عام، الأعضاء، المساعدات، والمالي — بجداول قابلة للفرز
+/// مع صفوف إجماليات، وتصدير PDF/Excel من الخادم.
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
 
@@ -18,7 +22,9 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
-  String tab = 'summary';
+  static const _tabs = ['ملخص', 'الأعضاء', 'المساعدات', 'مالي'];
+
+  String tab = _tabs.first;
   String? exporting;
 
   static const _reportTitles = {
@@ -29,18 +35,20 @@ class _ReportsScreenState extends State<ReportsScreen> {
     'vouchers': 'السندات',
   };
 
+  static const _statuses = ['قيد المراجعة', 'معتمدة', 'مصروفة', 'مرفوضة'];
+
   Future<void> _export(String key, String fmt) async {
     setState(() => exporting = '$key/$fmt');
     try {
       final bytes = await ApiService.instance.downloadReport(key, fmt);
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/${key}_report.$fmt');
+      final file = File('${dir.path}/${key}_report.${fmt == 'pdf' ? 'pdf' : 'xlsx'}');
       await file.writeAsBytes(bytes);
       await Share.shareXFiles([XFile(file.path)],
           text: 'تقرير ${_reportTitles[key]} - الصندوق الاجتماعي التنموي');
     } on ApiException catch (e) {
       if (mounted) uiToast(context, e.message, error: true);
-    } catch (e) {
+    } catch (_) {
       if (mounted) uiToast(context, 'تعذر تجهيز ملف التصدير', error: true);
     } finally {
       if (mounted) setState(() => exporting = null);
@@ -52,232 +60,257 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final c = App.of(context);
     final data = context.watch<DataController>();
 
-    const tabs = [('summary', 'ملخص'), ('members', 'الأعضاء'), ('aids', 'المساعدات'), ('financial', 'مالي')];
-
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(14)),
-          child: Row(
-            children: tabs
-                .map((t) => Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => tab = t.$1),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 9),
-                          decoration: BoxDecoration(
-                            color: tab == t.$1 ? c.primary : Colors.transparent,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(t.$2,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: tab == t.$1 ? Colors.white : c.mu)),
-                        ),
-                      ),
-                    ))
-                .toList(),
-          ),
-        ),
+        FilterChipsBar(options: _tabs, selected: tab, onSelected: (v) => setState(() => tab = v)),
         const SizedBox(height: 14),
-        if (tab == 'summary') ...[
-          _big(context, 'صافي الخزينة', data.treasuryBalance, c.primary),
-          _big(context, 'إجمالي الاشتراكات المحصلة', data.collectedSubscriptions, c.ok),
-          _big(context, 'المساعدات المصروفة', data.disbursedAids, c.err),
-          _big(context, 'إجمالي المدفوعات المسجلة على الأعضاء', data.memberTotalPaid, c.info),
-        ],
-        if (tab == 'members') ...[
-          Row(
-            children: [
-              Expanded(child: _stat(context, 'نشط', data.members.where((m) => m.isActive).length, c.ok)),
-              Expanded(child: _stat(context, 'معلق', data.members.where((m) => !m.isActive).length, c.warn)),
-              Expanded(child: _stat(context, 'الإجمالي', data.members.length, c.primary)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          UiCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('ترتيب الأعضاء بالمدفوعات',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: c.tx)),
-                const SizedBox(height: 8),
-                ...(() {
-                  final sorted = [...data.members]..sort((a, b) => b.totalPaid.compareTo(a.totalPaid));
-                  return sorted
-                      .map((m) => Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 5),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                    child: Text(m.name,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(fontSize: 13, color: c.tx))),
-                                Text(money(m.totalPaid),
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w800, color: c.primary, fontSize: 13)),
-                              ],
-                            ),
-                          ))
-                      .toList();
-                })(),
-              ],
-            ),
-          ),
-        ],
-        if (tab == 'aids') ...[
-          Row(
-            children: [
-              for (final (st, col) in [('قيد المراجعة', c.warn), ('معتمدة', c.ok), ('مصروفة', c.info), ('مرفوضة', c.err)])
-                Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: col.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border(top: BorderSide(color: col, width: 3)),
-                    ),
-                    child: Column(
-                      children: [
-                        Text('${data.aids.where((a) => a.status == st).length}',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: col)),
-                        Text(st, style: TextStyle(fontSize: 10, color: c.sub)),
-                        Text(
-                          money(data.aids.where((a) => a.status == st).fold<int>(0, (s, a) => s + a.amount)),
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: col),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          UiCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('المساعدات حسب النوع',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: c.tx)),
-                const SizedBox(height: 8),
-                ...data.aids.fold<Map<String, List<int>>>({}, (acc, a) {
-                  acc.putIfAbsent(a.aidType, () => [0, 0]);
-                  acc[a.aidType]![0] += a.amount;
-                  acc[a.aidType]![1] += 1;
-                  return acc;
-                }).entries
-                    .map((e) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 5),
-                          child: Row(
-                            children: [
-                              Expanded(child: Text(e.key, style: TextStyle(fontSize: 13, color: c.sub))),
-                              Text('${e.value[1]} طلب · ${money(e.value[0])}',
-                                  style: TextStyle(fontWeight: FontWeight.w700, color: c.primary, fontSize: 12.5)),
-                            ],
-                          ),
-                        )),
-              ],
-            ),
-          ),
-        ],
-        if (tab == 'financial')
-          UiCard(
-            child: Column(
-              children: [
-                _row('إجمالي الإيرادات', money(data.totalIncome), c.ok),
-                _row('إجمالي المصروفات', money(data.totalExpense), c.err),
-                _row('صافي الخزينة', money(data.treasuryBalance), c.info),
-              ],
-            ),
-          ),
-        const SizedBox(height: 6),
-        UiCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('تصدير التقارير (PDF / Excel)',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: c.tx)),
-              Text('يُنشأ التقرير من الخادم ويُشارك عبر أي تطبيق مثبت على الجهاز.',
-                  style: TextStyle(fontSize: 11, color: c.mu)),
-              const SizedBox(height: 8),
-              ..._reportTitles.entries.map((e) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        Expanded(child: Text(e.value, style: TextStyle(fontSize: 13.5, color: c.tx))),
-                        if (exporting == '${e.key}/pdf')
-                          const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        else
-                          IconButton(
-                            tooltip: 'PDF',
-                            onPressed: () => _export(e.key, 'pdf'),
-                            icon: const Icon(Icons.picture_as_pdf, color: Color(0xFFB71C1C)),
-                          ),
-                        if (exporting == '${e.key}/excel')
-                          const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        else
-                          IconButton(
-                            tooltip: 'Excel',
-                            onPressed: () => _export(e.key, 'excel'),
-                            icon: const Icon(Icons.grid_on, color: Color(0xFF2E7D32)),
-                          ),
-                      ],
-                    ),
-                  )),
-            ],
-          ),
-        ),
+        if (tab == 'ملخص') ..._summary(c, data),
+        if (tab == 'الأعضاء') ..._members(c, data),
+        if (tab == 'المساعدات') ..._aids(c, data),
+        if (tab == 'مالي') ..._financial(c, data),
+        const SectionHeader('تصدير التقارير', subtitle: 'تُنشأ من الخادم وتُشارك عبر أي تطبيق على الجهاز'),
+        _exportCard(c),
       ],
     );
   }
 
-  Widget _big(BuildContext context, String label, int value, Color color) {
-    final c = App.of(context);
-    return UiCard(
-      accentRight: color,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  // ───────── ملخص ─────────
+  List<Widget> _summary(AppColors c, DataController data) {
+    final net = data.treasuryBalance;
+    return [
+      Row(
         children: [
-          Expanded(child: Text(label, style: TextStyle(fontSize: 13, color: c.sub))),
-          Text(money(value), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: color)),
+          Expanded(
+            child: StatTile(
+              icon: Icons.account_balance,
+              label: 'صافي الخزينة',
+              value: money(net),
+              color: net >= 0 ? c.primary : c.err,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: StatTile(
+              icon: Icons.receipt_long,
+              label: 'الاشتراكات المحصلة',
+              value: money(data.collectedSubscriptions),
+              color: c.ok,
+            ),
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _stat(BuildContext context, String label, int n, Color color) {
-    final c = App.of(context);
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border(top: BorderSide(color: color, width: 3)),
-      ),
-      child: Column(
+      const SizedBox(height: 10),
+      Row(
         children: [
-          Text('$n', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: color)),
-          Text(label, style: TextStyle(fontSize: 11, color: c.sub)),
+          Expanded(
+            child: StatTile(
+              icon: Icons.volunteer_activism,
+              label: 'المساعدات المصروفة',
+              value: money(data.disbursedAids),
+              sub: '${data.aids.where((a) => a.status == 'مصروفة').length} طلب',
+              color: c.info,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: StatTile(
+              icon: Icons.people,
+              label: 'مدفوعات الأعضاء',
+              value: money(data.memberTotalPaid),
+              sub: '${data.members.length} عضو',
+              color: c.goldDark,
+            ),
+          ),
         ],
       ),
-    );
+    ];
   }
 
-  Widget _row(String label, String value, Color color) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  // ───────── الأعضاء ─────────
+  List<Widget> _members(AppColors c, DataController data) {
+    final active = data.members.where((m) => m.isActive).length;
+    final sorted = [...data.members]..sort((a, b) => b.totalPaid.compareTo(a.totalPaid));
+    final totalPaid = data.members.fold<int>(0, (s, m) => s + m.totalPaid);
+    final totalDue = data.members.fold<int>(0, (s, m) => s + m.balanceDue);
+    return [
+      Row(
+        children: [
+          Expanded(child: StatTile(icon: Icons.check_circle, label: 'نشط', value: '$active', color: c.ok)),
+          const SizedBox(width: 10),
+          Expanded(
+              child: StatTile(
+                  icon: Icons.pause_circle, label: 'معلق', value: '${data.members.length - active}', color: c.warn)),
+          const SizedBox(width: 10),
+          Expanded(child: StatTile(icon: Icons.people, label: 'الإجمالي', value: '${data.members.length}', color: c.primary)),
+        ],
+      ),
+      const SectionHeader('ترتيب الأعضاء بالمدفوعات', subtitle: 'اضغط على عنوان عمود للفرز'),
+      AppDataTable(
+        columns: const [
+          AppColumn('#', minWidth: 40),
+          AppColumn('العضو', minWidth: 110, flex: 3),
+          AppColumn('مدفوع', numeric: true, minWidth: 80, flex: 2),
+          AppColumn('متأخر', numeric: true, minWidth: 80, flex: 2),
+        ],
+        rows: [
+          for (final (i, m) in sorted.indexed)
+            AppRow([i + 1, m.name, m.totalPaid, m.balanceDue],
+                sortKeys: [i, m.name, m.totalPaid, m.balanceDue],
+                tint: m.balanceDue > 0 ? c.warn.withValues(alpha: 0.07) : null),
+        ],
+        footer: ['', 'الإجمالي', totalPaid, totalDue],
+        emptyText: 'لا أعضاء مسجلين',
+      ),
+    ];
+  }
+
+  // ───────── المساعدات ─────────
+  List<Widget> _aids(AppColors c, DataController data) {
+    final byStatus = {
+      for (final st in _statuses) st: data.aids.where((a) => a.status == st).toList(),
+    };
+    final colors = {'قيد المراجعة': c.warn, 'معتمدة': c.ok, 'مصروفة': c.info, 'مرفوضة': c.err};
+
+    final byType = <String, List<int>>{};
+    for (final a in data.aids) {
+      final e = byType.putIfAbsent(a.aidType, () => [0, 0]);
+      e[0] += 1;
+      e[1] += a.amount;
+    }
+    final typeRows = byType.entries.toList()..sort((a, b) => b.value[1].compareTo(a.value[1]));
+    final totalCount = data.aids.length;
+    final totalAmount = data.aids.fold<int>(0, (s, a) => s + a.amount);
+
+    return [
+      for (var i = 0; i < _statuses.length; i += 2) ...[
+        if (i > 0) const SizedBox(height: 10),
+        Row(
           children: [
-            Text(label, style: TextStyle(fontSize: 13, color: App.of(this as BuildContext).sub)),
-            Text(value, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: color)),
+            for (var j = i; j < i + 2; j++) ...[
+              if (j > i) const SizedBox(width: 10),
+              Expanded(child: _statusTile(c, _statuses[j], byStatus[_statuses[j]]!, colors[_statuses[j]]!)),
+            ],
           ],
         ),
+      ],
+      const SectionHeader('المساعدات حسب النوع'),
+      AppDataTable(
+        columns: const [
+          AppColumn('النوع', minWidth: 110, flex: 3),
+          AppColumn('الطلبات', numeric: true, minWidth: 64),
+          AppColumn('المبلغ', numeric: true, minWidth: 90, flex: 2),
+          AppColumn('النسبة', numeric: true, minWidth: 60),
+        ],
+        rows: [
+          for (final e in typeRows)
+            AppRow([
+              e.key,
+              e.value[0],
+              e.value[1],
+              totalAmount == 0 ? '0%' : '${(e.value[1] * 100 / totalAmount).toStringAsFixed(0)}%',
+            ], sortKeys: [e.key, e.value[0], e.value[1], e.value[1]]),
+        ],
+        footer: ['الإجمالي', totalCount, totalAmount, totalAmount == 0 ? '' : '100%'],
+        emptyText: 'لا طلبات مساعدة',
+      ),
+    ];
+  }
+
+  Widget _statusTile(AppColors c, String st, List aids, Color color) => StatTile(
+        icon: switch (st) {
+          'قيد المراجعة' => Icons.hourglass_top,
+          'معتمدة' => Icons.verified,
+          'مصروفة' => Icons.payments,
+          _ => Icons.cancel,
+        },
+        label: st,
+        value: '${aids.length}',
+        sub: money(aids.fold<int>(0, (s, a) => s + (a.amount as int))),
+        color: color,
       );
+
+  // ───────── مالي ─────────
+  List<Widget> _financial(AppColors c, DataController data) {
+    // تجميع حركات الخزينة شهرياً: وارد/صادر/صافي
+    final months = <String, List<int>>{};
+    for (final t in data.treasury) {
+      final key = t.entryDate.length >= 7 ? t.entryDate.substring(0, 7) : '—';
+      final e = months.putIfAbsent(key, () => [0, 0]);
+      if (t.isIncome) {
+        e[0] += t.amount;
+      } else {
+        e[1] += t.amount;
+      }
+    }
+    final keys = months.keys.toList()..sort((a, b) => b.compareTo(a));
+
+    return [
+      Row(
+        children: [
+          Expanded(child: StatTile(icon: Icons.south_west, label: 'الإيرادات', value: money(data.totalIncome), color: c.ok)),
+          const SizedBox(width: 10),
+          Expanded(child: StatTile(icon: Icons.north_east, label: 'المصروفات', value: money(data.totalExpense), color: c.err)),
+        ],
+      ),
+      const SizedBox(height: 10),
+      StatTile(
+        icon: Icons.account_balance,
+        label: data.treasuryBalance >= 0 ? 'الفائض (صافي الخزينة)' : 'العجز (صافي الخزينة)',
+        value: money(data.treasuryBalance),
+        color: data.treasuryBalance >= 0 ? c.primary : c.err,
+      ),
+      const SectionHeader('حركة الخزينة شهرياً', subtitle: 'الأحدث أولاً'),
+      AppDataTable(
+        columns: const [
+          AppColumn('الشهر', minWidth: 80, flex: 2),
+          AppColumn('وارد', numeric: true, minWidth: 80, flex: 2),
+          AppColumn('صادر', numeric: true, minWidth: 80, flex: 2),
+          AppColumn('الصافي', numeric: true, minWidth: 84, flex: 2),
+        ],
+        rows: [
+          for (final k in keys)
+            AppRow([k, months[k]![0], months[k]![1], months[k]![0] - months[k]![1]],
+                tint: months[k]![0] - months[k]![1] < 0 ? c.err.withValues(alpha: 0.07) : null),
+        ],
+        footer: ['الإجمالي', data.totalIncome, data.totalExpense, data.totalIncome - data.totalExpense],
+        emptyText: 'لا حركات خزينة',
+      ),
+    ];
+  }
+
+  // ───────── التصدير ─────────
+  Widget _exportCard(AppColors c) {
+    Widget btn(String key, String fmt, IconData icon, Color color) {
+      final busy = exporting == '$key/$fmt';
+      return busy
+          ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+          : IconButton(
+              tooltip: fmt == 'pdf' ? 'PDF' : 'Excel',
+              onPressed: exporting == null ? () => _export(key, fmt) : null,
+              icon: Icon(icon, color: color),
+            );
+    }
+
+    return UiCard(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Column(
+        children: [
+          for (final (i, e) in _reportTitles.entries.indexed) ...[
+            if (i > 0) Divider(height: 1, color: c.border),
+            Row(
+              children: [
+                const SizedBox(width: 8),
+                Icon(Icons.description_outlined, size: 20, color: c.mu),
+                const SizedBox(width: 10),
+                Expanded(child: Text(e.value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.tx))),
+                btn(e.key, 'pdf', Icons.picture_as_pdf, c.err),
+                btn(e.key, 'excel', Icons.grid_on, c.ok),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }

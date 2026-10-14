@@ -5,6 +5,7 @@ import '../../db/database.dart';
 import '../../db/repositories/aids_repository.dart';
 import '../../core/currency_math.dart';
 import '../../db/repositories/currencies_repository.dart';
+import '../../services/app_settings_service.dart';
 import '../middleware.dart';
 
 class AidsRoutes {
@@ -47,6 +48,10 @@ class AidsRoutes {
       final requestDate = (b['request_date'] ?? '').toString().trim();
       if (memberId.isEmpty || aidType.isEmpty || amount <= 0 || requestDate.isEmpty) {
         return jsonErr(400, 'member_id, aid_type, amount, request_date required');
+      }
+      final maxAmount = (await AppSettingsService(db).get<num>('aids.max_amount')).toInt();
+      if (maxAmount > 0 && amount > maxAmount) {
+        return jsonErr(400, 'المبلغ يتجاوز الحد الأعلى للمساعدة ($maxAmount)');
       }
       final a = await repo.create(
         memberId: memberId, memberName: memberName, aidType: aidType,

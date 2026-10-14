@@ -26,6 +26,7 @@ import 'routes/pledges_routes.dart';
 import 'routes/periodic_aids_routes.dart';
 import 'routes/currencies_routes.dart';
 import 'routes/app_routes.dart';
+import 'routes/app_settings_routes.dart';
 
 Handler buildHandler(AppDatabase db) {
   final root = Router();
@@ -54,11 +55,13 @@ Handler buildHandler(AppDatabase db) {
   root.mount('/', PledgesRoutes(db).router.call);
   root.mount('/', PeriodicAidsRoutes(db).router.call);
   root.mount('/', CurrenciesRoutes(db).router.call);
+  root.mount('/', AppSettingsRoutes(db).router.call);
   root.mount('/', AppRoutes(db).router.call);
 
   return const Pipeline()
       .addMiddleware(loggingMiddleware())
       .addMiddleware(authIfApiMiddleware(db))
+      .addMiddleware(auditMiddleware(db))
       .addMiddleware(jsonErrorMiddleware())
       .addMiddleware(corsMiddleware())
       .addMiddleware(securityHeadersMiddleware())

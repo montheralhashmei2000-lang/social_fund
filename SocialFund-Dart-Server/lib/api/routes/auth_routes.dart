@@ -6,6 +6,7 @@ import '../../core/auth.dart';
 import '../../core/password.dart';
 import '../../db/database.dart';
 import '../../db/repositories/users_repository.dart';
+import '../../services/audit_service.dart';
 import '../../services/session_service.dart';
 import '../middleware.dart';
 
@@ -63,14 +64,20 @@ class AuthRoutes {
         _dummyHash ??= await hashPassword('timing-equalizer');
         await verifyPassword(password, _dummyHash!);
         _LoginThrottle.fail(key);
+        await AuditService.log(db, action: 'login_failed', resourceType: 'auth',
+            summary: 'محاولة دخول فاشلة: $username');
         return jsonErr(401, 'Invalid credentials');
       }
       final ok = await verifyPassword(password, user.passwordHash);
       if (!ok) {
         _LoginThrottle.fail(key);
+        await AuditService.log(db, action: 'login_failed', resourceType: 'auth',
+            summary: 'محاولة دخول فاشلة: $username');
         return jsonErr(401, 'Invalid credentials');
       }
       _LoginThrottle.clear(key);
+      await AuditService.log(db, userId: user.id, userName: user.fullName, action: 'login',
+          resourceType: 'auth', summary: 'تسجيل دخول: ${user.username}');
       final t = await SessionService(db).start(user, deviceId: body['device_id'] as String?);
       return jsonOk({
         'access_token': t.accessToken,

@@ -8,6 +8,7 @@ import '../core/theme.dart';
 import '../services/push_service.dart';
 import '../state/controllers.dart';
 import '../state/currency_controller.dart';
+import '../state/settings_controller.dart';
 import '../widgets/ui.dart';
 import 'accounts_screen.dart';
 import 'aids_screen.dart';
@@ -25,6 +26,8 @@ import 'messages_screen.dart';
 import 'reports_screen.dart';
 import 'scheduler_screen.dart';
 import 'settings_screen.dart';
+import 'settings_section_screen.dart';
+import 'settings_sections.dart';
 import 'subscriptions_screen.dart';
 import 'treasury_screen.dart';
 import 'users_screen.dart';
@@ -75,6 +78,9 @@ class _HomeShellState extends State<HomeShell> {
   int selected = Tabs.dashboard;
   bool refreshing = false;
 
+  /// الشاشات التي زارها المستخدم: تُبنى عند أول زيارة فقط (كانت كلها تُبنى دفعة واحدة عند الإقلاع).
+  final Set<int> _visited = {Tabs.dashboard};
+
   @override
   void initState() {
     super.initState();
@@ -84,6 +90,7 @@ class _HomeShellState extends State<HomeShell> {
       refresh();
       // خوادم بلا مسار العملات تُبقي المبالغ بالريال (الخطأ غير حرج داخل load).
       context.read<CurrencyController>().load();
+      context.read<SettingsController>().load();
     });
   }
 
@@ -96,7 +103,10 @@ class _HomeShellState extends State<HomeShell> {
 
   void _onPushTab() {
     if (!mounted) return;
-    setState(() => selected = PushService.openTab.value);
+    setState(() {
+      selected = PushService.openTab.value;
+      _visited.add(selected);
+    });
   }
 
   void _onForeground() {
@@ -116,7 +126,32 @@ class _HomeShellState extends State<HomeShell> {
     if (!ok && data.lastError != null && mounted) uiToast(context, data.lastError!, error: true);
   }
 
-  void _open(int tab) => setState(() => selected = tab);
+  void _open(int tab) => setState(() {
+        selected = tab;
+        _visited.add(tab);
+      });
+
+  /// عناصر الشريط السفلي حسب الصلاحيات: أول أربع شاشات متاحة من القائمة المفضلة + «المزيد».
+  static const _navPriority = [Tabs.dashboard, Tabs.aids, Tabs.members, Tabs.vouchers, Tabs.treasury, Tabs.reports];
+
+  List<_TabDef> _navTabs(List<_TabDef> visible) {
+    final out = <_TabDef>[];
+    for (final idx in _navPriority) {
+      final t = visible.where((x) => x.index == idx);
+      if (t.isNotEmpty) out.add(t.first);
+      if (out.length == 4) break;
+    }
+    return out;
+  }
+
+  Future<void> _openMore(List<_TabDef> visible, int selectedIdx) async {
+    final picked = await uiSheet<int>(
+      context,
+      title: 'كل الأقسام',
+      child: _MoreGrid(tabs: visible, sections: _sections, selected: selectedIdx),
+    );
+    if (picked != null) _open(picked);
+  }
 
   List<_TabDef> _allTabs(AppUser user) => [
         _TabDef(Tabs.dashboard, 'لوحة المعلومات', Icons.dashboard, null, (_) => const DashboardScreen()),
@@ -137,7 +172,7 @@ class _HomeShellState extends State<HomeShell> {
         _TabDef(Tabs.donors, 'المانحون والمساهمون', Icons.handshake, 'donors', (_) => const DonorsScreen()),
         _TabDef(Tabs.campaigns, 'حملات التبرعات', Icons.campaign, 'campaigns', (_) => const CampaignsScreen()),
         _TabDef(Tabs.beneficiaries, 'المستفيدون', Icons.groups, 'beneficiaries', (_) => const BeneficiariesScreen()),
-        _TabDef(Tabs.periodic, 'المساعدات الدورية', Icons.autorenew, 'beneficiaries', (_) => const BeneficiariesScreen()),
+        _TabDef(Tabs.periodic, 'المساعدات الدورية', Icons.autorenew, 'beneficiaries', (_) => const BeneficiariesScreen(initialPeriodic: true)),
         _TabDef(Tabs.inkind, 'المساعدات العينية والمخزون', Icons.inventory_2, 'inkind', (_) => const InKindScreen()),
         // الإدارة
         _TabDef(Tabs.fundInfo, 'بيانات الصندوق', Icons.shield, 'settings', (_) => const FundInfoScreen()),
@@ -165,6 +200,10 @@ class _HomeShellState extends State<HomeShell> {
     final visible = tabs.where((t) => t.permission == null || Rbac.can(user.role, t.permission!)).toList();
     final current = visible.firstWhere((t) => t.index == selected, orElse: () => visible.first);
     final pendingAids = Rbac.can(user.role, 'aids') ? data.pendingAidsCount : 0;
+    // أيقونة الإعدادات في رأس الشاشة تفتح قسم إعداداتها (لمن يملك صلاحية الإعدادات)
+    final settingsSection = Rbac.can(user.role, 'settings') ? settingsSectionForTab(current.index) : null;
+    final nav = _navTabs(visible);
+    final navIndex = nav.indexWhere((t) => t.index == current.index);
 
     return Scaffold(
       backgroundColor: c.bg,
@@ -179,6 +218,10 @@ class _HomeShellState extends State<HomeShell> {
             onBell: Rbac.can(user.role, 'aids') ? () => _open(Tabs.aids) : null,
             onAvatar: () => _open(Tabs.settings),
             onRefresh: refresh,
+            onSettings: settingsSection == null
+                ? null
+                : () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => SettingsSectionScreen(sectionId: settingsSection))),
           ),
           if (!connectivity.online)
             Container(
@@ -204,12 +247,109 @@ class _HomeShellState extends State<HomeShell> {
               onRefresh: refresh,
               child: IndexedStack(
                 index: visible.indexOf(current),
-                children: visible.map((t) => t.builder(context)).toList(),
+                children: [
+                  for (final t in visible)
+                    _visited.contains(t.index) || t.index == current.index
+                        ? t.builder(context)
+                        : const SizedBox.shrink(),
+                ],
               ),
             ),
           ),
         ],
       ),
+      bottomNavigationBar: nav.length < 2
+          ? null
+          : NavigationBar(
+              selectedIndex: navIndex >= 0 ? navIndex : nav.length, // خارج الشريط ← «المزيد»
+              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+              onDestinationSelected: (i) => i < nav.length ? _open(nav[i].index) : _openMore(visible, current.index),
+              destinations: [
+                for (final t in nav)
+                  NavigationDestination(
+                    icon: Icon(t.icon),
+                    selectedIcon: Icon(t.icon),
+                    label: _short(t),
+                  ),
+                const NavigationDestination(
+                  icon: Icon(Icons.apps_rounded),
+                  selectedIcon: Icon(Icons.apps_rounded),
+                  label: 'المزيد',
+                ),
+              ],
+            ),
+    );
+  }
+
+  /// أسماء قصيرة للشريط السفلي.
+  static String _short(_TabDef t) => switch (t.index) {
+        Tabs.dashboard => 'الرئيسية',
+        Tabs.aids => 'المساعدات',
+        Tabs.members => 'الأعضاء',
+        Tabs.vouchers => 'السندات',
+        Tabs.treasury => 'الخزينة',
+        Tabs.reports => 'التقارير',
+        _ => t.title,
+      };
+}
+
+/// شبكة «كل الأقسام»: تعرض كل ما يملك المستخدم صلاحيته مجمّعاً كما في القائمة الجانبية.
+class _MoreGrid extends StatelessWidget {
+  final List<_TabDef> tabs;
+  final List<(String, List<int>)> sections;
+  final int selected;
+  const _MoreGrid({required this.tabs, required this.sections, required this.selected});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = App.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final (title, idxs) in sections)
+          if (idxs.any((i) => tabs.any((t) => t.index == i))) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(2, 10, 2, 8),
+              child: Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: c.goldDark)),
+            ),
+            GridView.count(
+              crossAxisCount: 3,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 1.05,
+              children: [
+                for (final i in idxs)
+                  for (final t in tabs.where((x) => x.index == i))
+                    InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () => Navigator.pop(context, t.index),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: t.index == selected ? c.primary.withValues(alpha: 0.12) : c.surf,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: t.index == selected ? c.primary : c.border),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(t.icon, size: 26, color: t.index == selected ? c.primary : c.sub),
+                            const SizedBox(height: 6),
+                            Text(t.title,
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: c.tx, height: 1.25)),
+                          ],
+                        ),
+                      ),
+                    ),
+              ],
+            ),
+          ],
+      ],
     );
   }
 }
@@ -222,6 +362,7 @@ class _Header extends StatelessWidget {
   final VoidCallback? onBell;
   final VoidCallback onAvatar;
   final VoidCallback onRefresh;
+  final VoidCallback? onSettings;
 
   const _Header({
     required this.title,
@@ -231,6 +372,7 @@ class _Header extends StatelessWidget {
     this.onBell,
     required this.onAvatar,
     required this.onRefresh,
+    this.onSettings,
   });
 
   @override
@@ -258,7 +400,7 @@ class _Header extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('الصندوق الاجتماعي التنموي · أونلاين · v${AppConfig.appVersion.split('.')[0]}.0',
+                    Text('الصندوق الاجتماعي التنموي',
                         style: TextStyle(
                             color: AppColors.light.gold,
                             fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
@@ -273,6 +415,13 @@ class _Header extends StatelessWidget {
                   padding: EdgeInsets.all(10),
                   child: SizedBox(width: 18, height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                ),
+              if (onSettings != null)
+                IconButton(
+                  onPressed: onSettings,
+                  tooltip: 'إعدادات هذه الشاشة',
+                  style: IconButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: 0.14)),
+                  icon: const Icon(Icons.tune_rounded, color: Colors.white, size: 20),
                 ),
               Stack(
                 children: [

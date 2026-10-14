@@ -94,6 +94,7 @@ class ApiService {
     required int amount,
     required String requestDate,
     String? note,
+    Map<String, dynamic>? money, // عملة أجنبية: currency + original_amount
   }) async =>
       AidRequest.fromJson(await _map(_c.request('POST', '/aids', data: {
         'member_id': memberId,
@@ -101,6 +102,7 @@ class ApiService {
         'amount': amount,
         'request_date': requestDate,
         'note': note,
+        ...?money,
       })));
 
   Future<AidRequest> updateAidStatus(String id, String status) async =>
@@ -118,12 +120,14 @@ class ApiService {
     required int amount,
     required String paymentDate,
     required String method,
+    Map<String, dynamic>? money,
   }) async =>
       Subscription.fromJson(await _map(_c.request('POST', '/subscriptions', data: {
         'member_id': memberId,
         'amount': amount,
         'payment_date': paymentDate,
         'method': method,
+        ...?money,
       })));
 
   Future<void> deleteSubscription(String id) => _c.request('DELETE', '/subscriptions/$id');
@@ -139,6 +143,7 @@ class ApiService {
     required String description,
     required int amount,
     required String entryDate,
+    Map<String, dynamic>? money,
   }) async =>
       TreasuryEntry.fromJson(await _map(_c.request('POST', '/treasury', data: {
         'type': type,
@@ -146,6 +151,7 @@ class ApiService {
         'description': description,
         'amount': amount,
         'entry_date': entryDate,
+        ...?money,
       })));
 
   Future<void> deleteTreasuryEntry(String id) => _c.request('DELETE', '/treasury/$id');
@@ -381,6 +387,13 @@ class ApiService {
     params.forEach((k, v) => q[k] = v);
     return _c.requestBytes('GET', '/financial-reports/$key', query: q);
   }
+
+  // ================= App settings =================
+
+  Future<Map<String, dynamic>> appSettings() => _map(_c.request('GET', '/app-settings'));
+
+  Future<Map<String, dynamic>> updateAppSettings(Map<String, Object?> patch) =>
+      _map(_c.request('PUT', '/app-settings', data: patch));
 
   // ================= Currencies =================
 

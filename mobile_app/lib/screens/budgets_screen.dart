@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/api_client.dart';
+import '../core/num_parse.dart';
 import '../core/theme.dart';
 import '../services/api_service.dart';
 import '../widgets/ui.dart';
@@ -25,7 +26,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => loading = true);
+    setState(() {
+      loading = true;
+      err = null;
+    });
     try {
       final r = await ApiService.instance.budgetReport(period);
       if (mounted) {
@@ -84,8 +88,8 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
             else ...[
               Row(
                 children: [
-                  Expanded(child: _total(context, 'المخطط', money2(report!['total_planned'] as double), c.primary)),
-                  Expanded(child: _total(context, 'الفعلي', money2(report!['total_actual'] as double), c.info)),
+                  Expanded(child: _total(context, 'المخطط', money2(((report!['total_planned'] as num?) ?? 0).toDouble()), c.primary)),
+                  Expanded(child: _total(context, 'الفعلي', money2(((report!['total_actual'] as num?) ?? 0).toDouble()), c.info)),
                   Expanded(child: _total(context, 'نسبة الاستهلاك', '${report!['total_usage_pct']}%', c.goldDark)),
                 ],
               ),
@@ -135,9 +139,8 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
           bottom: 18,
           left: 18,
           child: FloatingActionButton(
-            backgroundColor: c.primaryMid,
             onPressed: _addBudget,
-            child: const Icon(Icons.add, color: Colors.white),
+            child: const Icon(Icons.add),
           ),
         ),
       ],
@@ -181,7 +184,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
             UiButton(
               text: 'إنشاء الموازنة',
               onPressed: () async {
-                final amt = double.tryParse(planned.text.trim()) ?? 0;
+                final amt = parseDouble(planned.text.trim()) ?? 0;
                 if (amt <= 0) {
                   uiToast(ctx, 'أدخل مبلغاً صحيحاً', error: true);
                   return;
