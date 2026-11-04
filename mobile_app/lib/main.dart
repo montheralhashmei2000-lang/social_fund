@@ -5,10 +5,12 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/config.dart';
+import 'core/database.dart';
 import 'core/theme.dart';
 import 'screens/home_shell.dart';
 import 'screens/login_screen.dart';
 import 'services/push_service.dart';
+import 'services/sync_service.dart';
 import 'state/controllers.dart';
 import 'state/currency_controller.dart';
 import 'state/settings_controller.dart';
@@ -19,6 +21,16 @@ Future<void> main() async {
   SystemChrome.setPreferredOrientations(
       [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
   AppConfig.assertSafeConfiguration();
+
+  // ===== تهيئة قاعدة البيانات المحلية (أساس التطبيق - محلياً أولاً) =====
+  // إنشاء SQLite سريع، وفشله غير حرج (يكمل التطبيق دون تخزين محلي).
+  try {
+    await DatabaseHelper().database;
+    await syncService.init();
+  } catch (e) {
+    debugPrint('تعذّر تهيئة قاعدة البيانات المحلية (غير حرج): $e');
+  }
+
   // Firebase اختياري للإشعارات - غيابه لا يوقف التطبيق.
   try {
     await Firebase.initializeApp();

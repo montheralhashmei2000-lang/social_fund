@@ -15,7 +15,7 @@
 
 ## البنية
 ```
-The_fund/
+social_fund/
 ├── SocialFund-Dart-Server/   خادم Dart (الاتجاه الحالي)
 ├── deploy/                   نشر Dart: deploy.ps1 (سحابي) · run-local.ps1 (محلي) · build-apk.ps1
 ├── backend/                  خادم FastAPI (محاسبة، سندات، خيري، RBAC، تشفير حقلي، تدقيق)
@@ -94,6 +94,10 @@ flutter build apk --release --dart-define=API_BASE_URL=... --dart-define=APP_ENV
 cd backend && python3 -m pytest -q          # 57 اختبار
 cd mobile_app && flutter analyze && flutter test
 ```
+
+## Python 3.12 Required for Backend
+
+**Note**: The Python backend requires **Python 3.12**. Python 3.13 is known to cause build failures with pinned dependency versions. Use Python 3.12 to avoid compatibility issues.
 
 ## التحسينات الاحترافية (بواسطة apply_pro_improvements.py)
 

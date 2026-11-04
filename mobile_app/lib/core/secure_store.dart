@@ -16,6 +16,7 @@ class SecureStore {
   static const String _accessTokenKey = 'sf_access_token';
   static const String _refreshTokenKey = 'sf_refresh_token';
   static const String _biometricKey = 'sf_biometric_enabled';
+  static const String _usernameKey = 'sf_username';
   static const String _deviceIdKey = 'sf_device_id';
   static const String _darkModeKey = 'sf_dark_mode';
 
@@ -76,6 +77,9 @@ class SecureStore {
       : _storage.write(key: _displayCurrencyKey, value: code);
 
   /// قائمة الخوادم المحفوظة (JSON) ومعرّف الخادم النشط.
+  static Future<String?> username() => _storage.read(key: _usernameKey);
+  static Future<void> saveUsername(String username) => _storage.write(key: _usernameKey, value: username);
+
   static Future<String?> serversJson() => _storage.read(key: _serversKey);
   static Future<void> saveServersJson(String json) =>
       _storage.write(key: _serversKey, value: json);

@@ -1,9 +1,21 @@
 # app/core/security.py
 from datetime import datetime, timedelta, timezone
 import hashlib
+import types
 import uuid
 
 from jose import jwt, JWTError
+
+# توافق مع bcrypt 4.1+ : passlib 1.7.4 يقرأ الإصدار من bcrypt.__about__
+# وهو خاصية أُزيلت في الإصدارات الحديثة، فيسقط كشف المحرك وي grapefruit.
+try:  # pragma: no cover - يعتمد على إصدار bcrypt المثبّت
+    import bcrypt as _bcrypt
+
+    if not hasattr(_bcrypt, "__about__"):
+        _bcrypt.__about__ = types.SimpleNamespace(__version__=_bcrypt.__version__)
+except Exception:  # noqa: BLE001 - لا نُفشل التشغيل إن لم يكن bcrypt مثبتاً
+    pass
+
 from passlib.context import CryptContext
 
 from app.core.config import settings

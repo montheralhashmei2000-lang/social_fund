@@ -1,23 +1,33 @@
 import 'package:flutter/foundation.dart';
 
 /// إعدادات البيئات: التطوير / الإنتاج.
-///
-/// بناء الإنتاج يجب أن يمرر عنوان خادم آمن عبر dart-define:
-/// flutter build apk --release \
-///   --dart-define=API_BASE_URL=https://api.example.com \
-///   --dart-define=APP_ENV=production
-///
-/// هذا يحل ملاحظة الفحص 15 (العنوان الثابت 10.0.2.2 الخاص بالمحاكي).
 class AppConfig {
   AppConfig._();
 
   /// العنوان الافتراضي وقت البناء (يُستخدم إن لم يحفظ المستخدم أي خادم).
-  static const String defaultBaseUrl = String.fromEnvironment(
+  static const String _envBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000',
+    defaultValue: '',
   );
 
-  /// العنوان الفعّال حالياً: يُستبدل وقت التشغيل عند اختيار خادم من «الخوادم».
+  /// دالة ذكية لتحديد عنوان الخادم حسب المنصة:
+  /// - في أندرويد (المحاكي): 10.0.2.2
+  /// - في ويندوز/آيفون/ويب: 127.0.0.1 (لتجنب مشاكل IPv6 مع localhost)
+  static String get defaultBaseUrl {
+    if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
+    
+    if (kIsWeb) return 'http://127.0.0.1:8000';
+    
+    // إذا كان يعمل على أندرويد، استخدم عنوان المحاكي
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:8000';
+    }
+    
+    // لأي منصة أخرى (ويندوز، ماك، لينكس)، استخدم 127.0.0.1
+    return 'http://127.0.0.1:8000';
+  }
+
+  /// العنوان الفعّال حالياً.
   static String baseUrl = defaultBaseUrl;
 
   /// للتوافق مع الاستخدامات القديمة.
@@ -30,7 +40,6 @@ class AppConfig {
 
   static bool get isProduction => appEnv == 'production';
 
-  /// في الإنتاج يجب أن يكون العنوان https - أي عنوان http يُسجَّل كتحذير خطير.
   static bool get isSecureBaseUrl {
     final uri = Uri.tryParse(baseUrl);
     return uri != null && uri.scheme == 'https';

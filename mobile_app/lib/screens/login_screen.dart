@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 
 import '../core/api_client.dart';
@@ -25,7 +28,10 @@ class _LoginScreenState extends State<LoginScreen> {
   late LoginStep step;
   final _un = TextEditingController();
   final _pw = TextEditingController();
+  final _unFocus = FocusNode();
+  final _pwFocus = FocusNode();
   bool _showPw = false;
+  bool _remember = false;
   String? _err;
   bool _busy = false;
 
@@ -37,17 +43,40 @@ class _LoginScreenState extends State<LoginScreen> {
   final List<FocusNode> _otpFocus = List.generate(6, (_) => FocusNode());
   Timer? _countdown;
   int _cd = 0;
+  static const _storage = FlutterSecureStorage();
 
   @override
   void initState() {
     super.initState();
     step = widget.initialStep;
+    _loadRememberedUsername();
+  }
+
+  Future<void> _loadRememberedUsername() async {
+    final username = await _storage.read(key: 'sf_username');
+    if (username != null && username.isNotEmpty && mounted) {
+      setState(() {
+        _un.text = username;
+        _remember = true;
+      });
+    }
+  }
+
+  Future<void> _saveRememberedUsername(bool value) async {
+    setState(() => _remember = value);
+    if (value) {
+      await _storage.write(key: 'sf_username', value: _un.text.trim());
+    } else {
+      await _storage.delete(key: 'sf_username');
+    }
   }
 
   @override
   void dispose() {
     _un.dispose();
     _pw.dispose();
+    _unFocus.dispose();
+    _pwFocus.dispose();
     for (final c in _otp) {
       c.dispose();
     }
@@ -82,7 +111,12 @@ class _LoginScreenState extends State<LoginScreen> {
             _un.text.trim(),
             _pw.text,
           );
-      if (res['logged_in'] == true) return; // خادم بلا OTP: البوابة تنقلنا للرئيسية
+      
+      if (res['logged_in'] == true) {
+        await _saveRememberedUsername(_remember);
+        return; 
+      }
+      
       setState(() {
         _otpToken = res['otp_token'] as String?;
         _pendingName = res['user_name'] as String?;
@@ -95,6 +129,14 @@ class _LoginScreenState extends State<LoginScreen> {
       });
     } on ApiException catch (e) {
       setState(() => _err = e.message);
+    } catch (e) {
+      // عرض الخطأ الحقيقي لمعرفة السبب (مثل رفض الاتصال أو خطأ في الصيغة)
+      print('Login Error Details: $e');
+      String errorMsg = e.toString();
+      if (errorMsg.contains('SocketException') || errorMsg.contains('Connection refused')) {
+        errorMsg = 'تعذر الاتصال بالخادم. تأكد من تشغيل الخادم (dart run bin/server.dart)';
+      }
+      setState(() => _err = 'خطأ تقني: $errorMsg');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -113,7 +155,6 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       await context.read<AuthController>().verifyOtp(_otpToken!, code);
-      // نجاح الدخول - بوابة الجلسة (_Gate) تنتقل للرئيسية تلقائياً
     } on ApiException catch (e) {
       setState(() {
         _err = e.message;
@@ -122,6 +163,8 @@ class _LoginScreenState extends State<LoginScreen> {
         }
         _otpFocus[0].requestFocus();
       });
+    } catch (e) {
+      setState(() => _err = 'خطأ في التحقق: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -143,6 +186,14 @@ class _LoginScreenState extends State<LoginScreen> {
   void _toManualLogin() {
     context.read<AuthController>().needsBiometricUnlock = false;
     setState(() => step = LoginStep.creds);
+  }
+
+  void _exitApp() {
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      exit(0);
+    } else {
+      SystemNavigator.pop();
+    }
   }
 
   @override
@@ -197,7 +248,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             fontWeight: FontWeight.w800,
                             letterSpacing: 3)),
                     const SizedBox(height: 10),
-                    const Text('الصندوق الاجتماعي\nالتنموي',
+                    const Text('صندوق الحبيلين\nالاجتماعي التنموي',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                             color: Colors.white,
@@ -205,7 +256,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             fontWeight: FontWeight.w900,
                             height: 1.3)),
                     const SizedBox(height: 10),
-                    Text('نظام الإدارة الشامل · أونلاين · الإصدار 9.0',
+                    Text('نظام الإدارة الشامل · الإصدار 9.0',
                         style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 13)),
                   ],
                 ),
@@ -262,42 +313,217 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _headerBar(String smallLabel, String title, {VoidCallback? onBack}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 48, 24, 28),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF003300), Color(0xFF2E7D32)],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (onBack != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 18),
-              child: TextButton.icon(
-                onPressed: onBack,
-                style: TextButton.styleFrom(
-                  backgroundColor: Colors.white.withValues(alpha: 0.16),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+  Widget _creds() {
+    final isDesktop = MediaQuery.of(context).size.width > 600;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF121212),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(isDesktop ? 32 : 16),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: isDesktop ? 450 : double.infinity,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E1E),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.white12),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black45, blurRadius: 20, offset: Offset(0, 10))
+                  ],
                 ),
-                icon: const Icon(Icons.arrow_forward, size: 16),
-                label: const Text('رجوع', style: TextStyle(fontSize: 13)),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade800,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.green.shade400, width: 2),
+                      ),
+                      child: const Icon(Icons.shield, size: 48, color: Colors.white),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'صندوق الحبيلين الاجتماعي التنموي',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'تسجيل الدخول',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+
+                    if (_err != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline, color: Colors.redAccent, size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _err!,
+                                style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
+                    TextField(
+                      controller: _un,
+                      focusNode: _unFocus,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'اسم المستخدم',
+                        labelStyle: const TextStyle(color: Colors.white54),
+                        hintText: 'admin',
+                        hintStyle: const TextStyle(color: Colors.white30),
+                        prefixIcon: const Icon(Icons.person_outline, color: Colors.white54),
+                        filled: true,
+                        fillColor: const Color(0xFF2C2C2C),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.green, width: 1.5),
+                        ),
+                      ),
+                      textInputAction: TextInputAction.next,
+                      onSubmitted: (_) => _pwFocus.requestFocus(),
+                    ),
+                    const SizedBox(height: 16),
+
+                    TextField(
+                      controller: _pw,
+                      focusNode: _pwFocus,
+                      obscureText: !_showPw,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'كلمة المرور',
+                        labelStyle: const TextStyle(color: Colors.white54),
+                        prefixIcon: const Icon(Icons.lock_outline, color: Colors.white54),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _showPw ? Icons.visibility : Icons.visibility_off,
+                            color: Colors.white54,
+                          ),
+                          onPressed: () => setState(() => _showPw = !_showPw),
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFF2C2C2C),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.green, width: 1.5),
+                        ),
+                      ),
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _tryLogin(),
+                    ),
+                    const SizedBox(height: 16),
+
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _remember,
+                          onChanged: (val) {
+                            if (val != null) _saveRememberedUsername(val);
+                          },
+                          activeColor: Colors.green,
+                          checkColor: Colors.white,
+                          side: const BorderSide(color: Colors.white54),
+                        ),
+                        const Text(
+                          'تذكر اسم المستخدم',
+                          style: TextStyle(color: Colors.white70, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: OutlinedButton.icon(
+                            onPressed: _exitApp,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white24),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            icon: const Icon(Icons.logout, size: 18),
+                            label: const Text('خروج', style: TextStyle(fontWeight: FontWeight.w700)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: FilledButton.icon(
+                            onPressed: _busy ? null : _tryLogin,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFF00C853),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            icon: _busy
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.login, size: 20),
+                            label: Text(
+                              _busy ? 'جارٍ الدخول...' : 'دخول',
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          Text(smallLabel,
-              style: TextStyle(
-                  color: AppColors.light.gold,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 2)),
-          const SizedBox(height: 4),
-          Text(title,
-              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
-        ],
+          ),
+        ),
       ),
     );
   }
@@ -324,90 +550,46 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _creds() {
-    final c = App.of(context);
-    final auth = context.watch<AuthController>();
-    return Scaffold(
-      backgroundColor: c.bg,
-      body: Column(
-        children: [
-          _headerBar('تسجيل الدخول', 'مرحباً بك', onBack: () => setState(() => step = LoginStep.splash)),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: c.card,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [BoxShadow(color: Color(0x16000000), blurRadius: 12, offset: Offset(0, 4))],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    UiField(
-                      label: 'اسم المستخدم',
-                      controller: _un,
-                      hint: 'أدخل اسم المستخدم',
-                      icon: Icons.person_outline,
-                    ),
-                    UiField(
-                      label: 'كلمة المرور',
-                      controller: _pw,
-                      hint: '••••••••',
-                      icon: Icons.lock_outline,
-                      obscure: !_showPw,
-                      suffix: IconButton(
-                        icon: Icon(_showPw ? Icons.visibility_off : Icons.visibility,
-                            size: 19, color: c.mu),
-                        onPressed: () => setState(() => _showPw = !_showPw),
-                      ),
-                    ),
-                    _errBox(),
-                    UiButton(
-                      text: _busy ? 'جارٍ الاتصال بالخادم…' : 'دخول إلى النظام',
-                      onPressed: _busy ? null : _tryLogin,
-                    ),
-                    if (auth.biometricsAvailable)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: TextButton.icon(
-                          onPressed: () => setState(() => step = LoginStep.biometric),
-                          icon: const Icon(Icons.fingerprint, size: 18),
-                          label: const Text('دخول بالبصمة',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                        ),
-                      ),
-                    const SizedBox(height: 8),
-                    // الخادم الحالي مع إمكانية التبديل (محلي/سحابي) دون العودة للشاشة الأولى
-                    TextButton.icon(
-                      onPressed: () async {
-                        await Navigator.of(context)
-                            .push(MaterialPageRoute(builder: (_) => const ServersScreen()));
-                        if (mounted) setState(() {});
-                      },
-                      icon: Icon(Icons.dns, size: 16, color: c.mu),
-                      label: Text('الخادم: ${ServerProfiles.active?.name ?? AppConfig.baseUrl} — تغيير',
-                          style: TextStyle(fontSize: 12, color: c.sub)),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _otpStep() {
     final c = App.of(context);
     return Scaffold(
       backgroundColor: c.bg,
       body: Column(
         children: [
-          _headerBar('التحقق الثنائي · OTP', 'أدخل رمز التحقق',
-              onBack: () => setState(() => step = LoginStep.creds)),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 48, 24, 28),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(colors: [Color(0xFF003300), Color(0xFF2E7D32)]),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 18),
+                  child: TextButton.icon(
+                    onPressed: () => setState(() => step = LoginStep.creds),
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.16),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    ),
+                    icon: const Icon(Icons.arrow_forward, size: 16),
+                    label: const Text('رجوع', style: TextStyle(fontSize: 13)),
+                  ),
+                ),
+                Text('التحقق الثنائي · OTP',
+                    style: TextStyle(
+                        color: AppColors.light.gold,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 2)),
+                const SizedBox(height: 4),
+                const Text('أدخل رمز التحقق',
+                    style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
+              ],
+            ),
+          ),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),

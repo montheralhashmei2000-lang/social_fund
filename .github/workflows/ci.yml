@@ -57,3 +57,20 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
+
+  dart-server:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: SocialFund-Dart-Server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - name: تثبيت الاعتماديات
+        run: dart pub get
+      - name: تحليل الكود (dart analyze)
+        run: dart analyze
+      - name: اختبارات Dart
+        run: dart test

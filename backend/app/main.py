@@ -21,7 +21,7 @@ from app.routers import (
     auth, members, aids, subscriptions, treasury, vouchers,
     messages, events, fund_settings, reports, backup, audit, users, push, admin,
     accounts, journal, donors, campaigns, beneficiaries, inkind, budgets, reports_financial,
-    card_verify,
+    card_verify, sync,
 )
 
 # يفشل فوراً عند الإقلاع إذا كانت مفاتيح الإنتاج غير مضبوطة.
@@ -113,6 +113,7 @@ app.include_router(inkind.router)
 app.include_router(budgets.router)
 app.include_router(reports_financial.router)
 app.include_router(card_verify.router)
+app.include_router(sync.router)
 
 
 # ===== واجهة مُصدرة بإصدار: نفس الراوترات تحت /v1 (القديم يعمل للتوافق) =====
@@ -121,7 +122,7 @@ import importlib as _importlib
 for _name in ("auth", "users", "members", "aids", "subscriptions", "treasury", "vouchers",
               "messages", "events", "fund_settings", "reports", "backup", "audit", "push",
               "admin", "accounts", "journal", "donors", "campaigns", "beneficiaries",
-              "inkind", "budgets", "reports_financial", "card_verify"):
+              "inkind", "budgets", "reports_financial", "card_verify", "sync"):
     try:
         app.include_router(_importlib.import_module(f"app.routers.{_name}").router, prefix="/v1")
     except ModuleNotFoundError:

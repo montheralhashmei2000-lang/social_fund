@@ -1,5 +1,5 @@
-# خادم الصندوق الاجتماعي (Dart) — صورة إنتاج صغيرة: يُترجَم إلى ملف تنفيذي واحد.
-# يُبنى على الجهاز الهدف نفسه فيعمل على x86 وعلى ARM (مثل Oracle Ampere) دون تعديل.
+# خادم الصندوق الاجتماعي (Dart) — صورة إنتاج محسنة لـ Oracle Cloud Free Tier (ARM Ampere / Ubuntu 22.04 LTS).
+# البناء متعدد المراحل: يجمع التنفيذي المستقل (يعمل على x86 و ARM دون تعديل).
 FROM dart:stable AS build
 WORKDIR /app
 COPY pubspec.yaml pubspec.lock ./
@@ -8,9 +8,17 @@ COPY . .
 RUN dart pub get --offline \
  && dart compile exe bin/server.dart -o /app/server
 
-FROM debian:bookworm-slim
+# صورة التشغيل: Ubuntu 22.04 LTS (قاعدة ARM64 أصلية لـ Oracle Ampere).
+FROM ubuntu:22.04
+# تثبيت تبعيات وقت التشغيل: SQLite3، مكتبات PostgreSQL 14، شهادات، أدوات تشخيص.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends libsqlite3-0 ca-certificates curl \
+ && apt-get install -y --no-install-recommends \
+      libsqlite3-0 \
+      libpq5 \
+      postgresql-client-14 \
+      ca-certificates \
+      curl \
+      tzdata \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app/server /app/server
