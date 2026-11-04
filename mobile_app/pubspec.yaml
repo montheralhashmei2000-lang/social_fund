@@ -24,8 +24,6 @@ dependencies:
   path: ^1.9.0
 
   # مصادقة بيومترية حقيقية (بصمة/قفل الجهاز)
-
-  # مصادقة بيومترية حقيقية (بصمة/قفل الجهاز)
   local_auth: ^2.2.0
 
   # الإشعارات الفورية
@@ -59,7 +57,6 @@ flutter:
         - asset: assets/fonts/Amiri-Regular.ttf
         - asset: assets/fonts/Amiri-Bold.ttf
           weight: 700
-    # خط الواجهة (جداول، أرقام، نصوص): Tajawal — رخصة OFL (assets/fonts/Tajawal-OFL.txt)
     - family: Tajawal
       fonts:
         - asset: assets/fonts/Tajawal-Regular.ttf
