@@ -131,7 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _err = e.message);
     } catch (e) {
       // عرض الخطأ الحقيقي لمعرفة السبب (مثل رفض الاتصال أو خطأ في الصيغة)
-      print('Login Error Details: $e');
+      // print('Login Error Details: $e');
       String errorMsg = e.toString();
       if (errorMsg.contains('SocketException') || errorMsg.contains('Connection refused')) {
         errorMsg = 'تعذر الاتصال بالخادم. تأكد من تشغيل الخادم (dart run bin/server.dart)';
