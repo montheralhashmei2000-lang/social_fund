@@ -51,7 +51,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.24.3
+          # تم تحديث الإصدار من 3.24.3 إلى 3.35.0 ليدعم Dart 3.9.0 المطلوب لمكتبة intl
+          flutter-version: '3.35.0' 
           channel: stable
           cache: true
       - run: flutter pub get
